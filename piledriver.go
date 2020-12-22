@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strings"
 
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
@@ -83,29 +82,4 @@ func retrieveDriveClient() *drive.Service {
 }
 
 func main() {
-	service := retrieveDriveClient()
-
-	r, err := service.Files.List().Fields("nextPageToken, files(id, name)").Do()
-	if err != nil {
-		log.Fatalf("Unable to retrieve files: %v", err)
-	}
-	fmt.Println("Files:")
-	if len(r.Files) == 0 {
-		fmt.Println("No files found.")
-		fmt.Println("Do you want to create one?")
-		var ans string
-		fmt.Scanf("%s", &ans)
-		if strings.Compare(ans, "y") == 0 {
-			file := new(drive.File)
-			file.Name = "dummy"
-			_, err := service.Files.Create(file).Do()
-			if err != nil {
-				fmt.Errorf("Error: %v", err)
-			}
-		}
-	} else {
-		for _, i := range r.Files {
-			fmt.Printf("%s (%s)\n", i.Name, i.Id)
-		}
-	}
 }
