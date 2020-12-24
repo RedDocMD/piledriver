@@ -125,22 +125,3 @@ func CreateFolder(service *drive.Service, name string, parentID ...string) (*dri
 	}
 	return service.Files.Create(dir).Do()
 }
-
-// ExecuteOperations takes a chan of FileXXXCall and executes them in separate
-// go routines
-func ExecuteOperations(queue chan interface{}, output chan int) {
-	for todo := range queue {
-		switch v := todo.(type) {
-		case *drive.FilesCreateCall:
-			go func() {
-				v.Do()
-				output <- 1
-			}()
-		case *drive.FilesUpdateCall:
-			go func() {
-				v.Do()
-				output <- 1
-			}()
-		}
-	}
-}

@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"sync"
 	"testing"
 
 	"google.golang.org/api/drive/v3"
@@ -48,16 +49,16 @@ func TestUploadWithChannel(t *testing.T) {
 	backupDir := getBackupDirID(service, t)
 	times := 10
 	filename := "./test_data/upload5M.pdf"
-	operations := make(chan interface{}, times)
-	output := make(chan int, times)
-	go ExecuteOperations(operations, output)
+	var wg sync.WaitGroup
 	for i := 1; i <= times; i++ {
-		err := CreateFile(service, filename, backupDir, operations)
-		if err != nil {
-			t.Fatal(err)
-		}
+		wg.Add(1)
+		go func() {
+			err := CreateFile(service, filename, backupDir, nil)
+			if err != nil {
+				t.Error(err)
+			}
+			wg.Done()
+		}()
 	}
-	for i := 1; i <= times; i++ {
-		_ = <-output
-	}
+	wg.Wait()
 }
