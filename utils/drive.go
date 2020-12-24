@@ -86,12 +86,12 @@ func RetrieveDriveService() *drive.Service {
 // CreateFile creates the file in drive, with the parent directory specified by
 // parentID and filename same as input file.
 // It does NOT check for the validity of parentID.
-// If queue is nil, the Do() will be execuuted in this method itself
+// If queue is nil, the Do() will be executed in this method itself
 func CreateFile(
 	service *drive.Service,
 	local string,
 	parentID string,
-	queue chan *drive.FilesCreateCall) error {
+	queue chan interface{}) error {
 
 	filename := path.Base(local)
 	driveFile := &drive.File{
@@ -116,7 +116,7 @@ func CreateFile(
 }
 
 // CreateFolder creates a folder in drive, with a parent directory specified by parentID
-// If no parent directories are specfied, then it is not set
+// If no parent directories are specified, then it is not set
 func CreateFolder(service *drive.Service, name string, parentID ...string) (*drive.File, error) {
 	dir := &drive.File{
 		Name:     name,
@@ -124,4 +124,23 @@ func CreateFolder(service *drive.Service, name string, parentID ...string) (*dri
 		Parents:  parentID,
 	}
 	return service.Files.Create(dir).Do()
+}
+
+// ExecuteOperations takes a chan of FileXXXCall and executes them in separate
+// go routines
+func ExecuteOperations(queue chan interface{}, output chan int) {
+	for todo := range queue {
+		switch v := todo.(type) {
+		case *drive.FilesCreateCall:
+			go func() {
+				v.Do()
+				output <- 1
+			}()
+		case *drive.FilesUpdateCall:
+			go func() {
+				v.Do()
+				output <- 1
+			}()
+		}
+	}
 }

@@ -29,3 +29,35 @@ func createBackupDir(service *drive.Service, t *testing.T) string {
 	}
 	return file.Id
 }
+
+func TestUploadWithoutChannel(t *testing.T) {
+	service := RetrieveDriveService()
+	backupDir := getBackupDirID(service, t)
+	times := 10
+	filename := "./test_data/upload5M.pdf"
+	for i := 1; i <= times; i++ {
+		err := CreateFile(service, filename, backupDir, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestUploadWithChannel(t *testing.T) {
+	service := RetrieveDriveService()
+	backupDir := getBackupDirID(service, t)
+	times := 10
+	filename := "./test_data/upload5M.pdf"
+	operations := make(chan interface{}, times)
+	output := make(chan int, times)
+	go ExecuteOperations(operations, output)
+	for i := 1; i <= times; i++ {
+		err := CreateFile(service, filename, backupDir, operations)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	for i := 1; i <= times; i++ {
+		_ = <-output
+	}
+}
