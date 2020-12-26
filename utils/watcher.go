@@ -11,17 +11,52 @@ import (
 
 // WatchLoop watches for file change events in a loop
 // recursive causes it to add new directories being created
-func WatchLoop(watcher *fsnotify.Watcher, recursive bool) {
+func WatchLoop(watcher *fsnotify.Watcher, recursive bool, events chan Event) {
 	for {
 		select {
 		case event, ok := <-watcher.Events:
 			if !ok {
+				log.Printf("exiting from watch loop")
 				return
 			}
 			fmt.Println(event)
-			if event.Op == fsnotify.Create {
-				if isDir(event.Name) {
-					AddDirRecursive(event.Name, watcher)
+
+			path := event.Name
+			var category EventCategory
+			pushEvent := true
+
+			switch event.Op {
+			case fsnotify.Create:
+				if isDir(path) {
+					if recursive {
+						AddDirRecursive(path, watcher)
+					}
+					category = DirectoryCreated
+				} else {
+					category = FileCreated
+				}
+			case fsnotify.Remove:
+				if isDir(path) {
+					category = DirectoryDeleted
+				} else {
+					category = FileDeleted
+				}
+			case fsnotify.Write:
+				category = FileWritten
+			case fsnotify.Rename:
+				if isDir(path) {
+					category = DirectoryRenamed
+				} else {
+					category = FileRenamed
+				}
+			default:
+				pushEvent = false
+			}
+
+			if pushEvent {
+				events <- Event{
+					Path:     path,
+					Category: category,
 				}
 			}
 		case event, ok := <-watcher.Errors:
