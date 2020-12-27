@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/fsnotify/fsnotify"
 )
@@ -35,20 +36,29 @@ func WatchLoop(state *State) {
 			switch event.Op {
 			case fsnotify.Create:
 				if isDir {
-					state.AddDir(path, true) // TODO: Correct this true
+					parts := strings.Split(path, string(filepath.Separator))
+					parentDir := "/" + filepath.Join(parts[:len(parts)-1]...)
+					if state.isDirRecursive(parentDir) {
+						state.AddDir(path, true)
+					}
 					category = DirectoryCreated
 				} else {
+					state.addFile(path)
 					category = FileCreated
 				}
 			case fsnotify.Remove:
 				if isDir {
 					category = DirectoryDeleted
+					state.delDir(path)
 				} else {
 					category = FileDeleted
+					state.delFile(path)
 				}
 			case fsnotify.Write:
 				category = FileWritten
+				// TODO: Put state updating
 			case fsnotify.Rename:
+				// TODO: Put state updating
 				if isDir {
 					category = DirectoryRenamed
 				} else {

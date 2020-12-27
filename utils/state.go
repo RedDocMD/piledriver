@@ -23,21 +23,23 @@ const (
 
 // State holds global state info for the program
 type State struct {
-	Config      config.Config
-	LogFilePath string
-	FileEvents  chan Event
-	watcher     *fsnotify.Watcher
-	pathID      map[string]string
-	pathType    map[string]FileType
-	service     *drive.Service
+	Config       config.Config
+	LogFilePath  string
+	FileEvents   chan Event
+	watcher      *fsnotify.Watcher
+	pathID       map[string]string
+	pathType     map[string]FileType
+	dirRecursive map[string]bool
+	service      *drive.Service
 }
 
 // NewState returns a new blank state
 func NewState() *State {
 	return &State{
-		pathID:     make(map[string]string),
-		pathType:   make(map[string]FileType),
-		FileEvents: make(chan Event, 512),
+		pathID:       make(map[string]string),
+		pathType:     make(map[string]FileType),
+		dirRecursive: make(map[string]bool),
+		FileEvents:   make(chan Event, 512),
 	}
 }
 
@@ -85,6 +87,11 @@ func (state *State) scanDir(dir string, recursive bool) {
 			fileType = RegularFile
 		} else {
 			fileType = Directory
+			if recursive {
+				state.dirRecursive[path] = true
+			} else {
+				state.dirRecursive[path] = false
+			}
 		}
 		state.pathType[path] = fileType
 		if path != dir && info.IsDir() && !recursive {
@@ -115,4 +122,21 @@ func (state *State) isDir(path string) (bool, error) {
 		return info.IsDir(), nil
 	}
 	return false, errors.New(fmt.Sprint(path, ": can't determine if path is a directory"))
+}
+
+func (state *State) isDirRecursive(path string) bool {
+	return state.dirRecursive[path]
+}
+
+func (state *State) addFile(path string) {
+	state.pathType[path] = RegularFile
+}
+
+func (state *State) delDir(path string) {
+	delete(state.dirRecursive, path)
+	delete(state.pathType, path)
+}
+
+func (state *State) delFile(path string) {
+	delete(state.pathType, path)
 }
