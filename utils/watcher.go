@@ -27,17 +27,21 @@ func WatchLoop(state *State) {
 			path := event.Name
 			var category EventCategory
 			pushEvent := true
+			isDir, err := state.isDir(path)
+			if err != nil {
+				log.Fatal(err)
+			}
 
 			switch event.Op {
 			case fsnotify.Create:
-				if isDir(path) {
-					AddDirRecursive(path, watcher)
+				if isDir {
+					state.AddDir(path, true) // TODO: Correct this true
 					category = DirectoryCreated
 				} else {
 					category = FileCreated
 				}
 			case fsnotify.Remove:
-				if isDir(path) {
+				if isDir {
 					category = DirectoryDeleted
 				} else {
 					category = FileDeleted
@@ -45,7 +49,7 @@ func WatchLoop(state *State) {
 			case fsnotify.Write:
 				category = FileWritten
 			case fsnotify.Rename:
-				if isDir(path) {
+				if isDir {
 					category = DirectoryRenamed
 				} else {
 					category = FileRenamed
@@ -69,19 +73,11 @@ func WatchLoop(state *State) {
 	}
 }
 
-func isDir(name string) bool {
-	info, err := os.Stat(name)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return info.IsDir()
-}
-
-// AddDirRecursive adds directories recursively to watcher
-func AddDirRecursive(dir string, watcher *fsnotify.Watcher) {
+func addDirRecursive(dir string, watcher *fsnotify.Watcher) {
 	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			log.Fatal(err)
+			log.Print("Failed to add - ", err)
+			return nil
 		}
 		if info.IsDir() {
 			watcher.Add(path)
