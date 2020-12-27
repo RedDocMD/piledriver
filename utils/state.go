@@ -1,8 +1,10 @@
-package global
+package utils
 
 import (
+	"log"
+
 	"github.com/RedDocMD/Piledriver/config"
-	"github.com/RedDocMD/Piledriver/utils"
+	"github.com/fsnotify/fsnotify"
 	"google.golang.org/api/drive/v3"
 )
 
@@ -10,7 +12,8 @@ import (
 type State struct {
 	Config      config.Config
 	LogFilePath string
-	FileEvents  chan utils.Event
+	FileEvents  chan Event
+	watcher     *fsnotify.Watcher
 	pathID      map[string]string
 	service     *drive.Service
 }
@@ -19,20 +22,36 @@ type State struct {
 func NewState() *State {
 	return &State{
 		pathID:     make(map[string]string),
-		FileEvents: make(chan utils.Event, 512),
+		FileEvents: make(chan Event, 512),
 	}
 }
 
 // InitService initializes the service field
 func (state *State) InitService() {
 	if state.service == nil {
-		state.service = utils.RetrieveDriveService()
+		state.service = RetrieveDriveService()
+	}
+}
+
+// InitWatcher initializes the watcher field
+func (state *State) InitWatcher() {
+	if state.watcher == nil {
+		watcher, err := fsnotify.NewWatcher()
+		if err != nil {
+			log.Fatal(err)
+		}
+		state.watcher = watcher
 	}
 }
 
 // Service returns the service field
 func (state *State) Service() *drive.Service {
 	return state.service
+}
+
+// Watcher returns the watcher field
+func (state *State) Watcher() *fsnotify.Watcher {
+	return state.watcher
 }
 
 // AddID adds in the ID of a path, returning true
