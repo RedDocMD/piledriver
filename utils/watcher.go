@@ -11,7 +11,10 @@ import (
 
 // WatchLoop watches for file change events in a loop
 // recursive causes it to add new directories being created
-func WatchLoop(watcher *fsnotify.Watcher, recursive bool, events chan Event) {
+func WatchLoop(state *State) {
+	watcher := state.watcher
+	events := state.FileEvents
+
 	for {
 		select {
 		case event, ok := <-watcher.Events:
@@ -28,9 +31,7 @@ func WatchLoop(watcher *fsnotify.Watcher, recursive bool, events chan Event) {
 			switch event.Op {
 			case fsnotify.Create:
 				if isDir(path) {
-					if recursive {
-						AddDirRecursive(path, watcher)
-					}
+					AddDirRecursive(path, watcher)
 					category = DirectoryCreated
 				} else {
 					category = FileCreated
