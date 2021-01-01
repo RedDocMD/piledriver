@@ -61,6 +61,7 @@ func WatchLoop(state *State) {
 				// TODO: Put state updating
 				if isDir {
 					category = DirectoryRenamed
+					// Remove all old paths
 				} else {
 					category = FileRenamed
 				}

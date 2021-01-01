@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/RedDocMD/Piledriver/config"
 	"github.com/fsnotify/fsnotify"
@@ -139,4 +140,14 @@ func (state *State) delDir(path string) {
 
 func (state *State) delFile(path string) {
 	delete(state.pathType, path)
+}
+
+func (state *State) renameDir(path string) {
+	for key := range state.pathType {
+		if strings.HasPrefix(key, path) {
+			delete(state.pathType, key)
+			delete(state.dirRecursive, key)
+			// TODO:: What about pathID
+		}
+	}
 }
