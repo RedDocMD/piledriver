@@ -1,9 +1,7 @@
 package afs
 
 import (
-	"path/filepath"
 	"regexp"
-	"runtime"
 	"strings"
 )
 
@@ -42,27 +40,26 @@ func newNode(name, parent string, isDir, isTerminal bool) *Node {
 }
 
 // Splits paths into its directories
-func splitPath(path string) []string {
+func splitPath(path string, sep string) []string {
 	var partitions []string
-	if runtime.GOOS == "windows" {
-		driveRegex := regexp.MustCompile(`[A-Z]:\\`)
-		if drive := driveRegex.FindString(path); drive != "" {
-			partitions = append(partitions, drive[:2])
-			path = path[4:]
+	driveRegex := regexp.MustCompile(`[A-Z]:\\`)
+	if drive := driveRegex.FindString(path); drive != "" {
+		partitions = append(partitions, drive[:2])
+		path = path[4:]
+	}
+	parts := strings.Split(path, sep)
+	var nonEmptyParts []string
+	for _, part := range parts {
+		if part != "" {
+			nonEmptyParts = append(nonEmptyParts, part)
 		}
-
 	}
-	parts := strings.Split(path, string(filepath.Separator))
-	if parts[len(parts)-1] == "" {
-		partitions = append(partitions, parts[:len(parts)-1]...)
-	} else {
-		partitions = append(partitions, parts...)
-	}
+	partitions = append(partitions, nonEmptyParts...)
 	return partitions
 }
 
 // Reverse of splitPath
-func joinPath(parts []string) string {
+func joinPath(parts []string, sep string, isAbs bool) string {
 	if len(parts) == 0 {
 		return ""
 	}
@@ -71,8 +68,10 @@ func joinPath(parts []string) string {
 	driveRegex := regexp.MustCompile(`[A-Z]:`)
 	if drive := driveRegex.FindString(partsClone[0]); drive != "" {
 		partsClone[0] = partsClone[0] + "\\"
+	} else if isAbs {
+		partsClone[0] = "/" + partsClone[0]
 	}
-	return strings.Join(partsClone, string(filepath.Separator))
+	return strings.Join(partsClone, sep)
 }
 
 // NewTree creates a new tree from a given directory
