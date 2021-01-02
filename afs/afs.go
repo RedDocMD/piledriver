@@ -15,12 +15,12 @@ import (
 // Node is a single node in the AFS, corresponding to a unique path in the OS,
 // and consequently in Google Drive
 type Node struct {
-	name       string // Just of this directory/node
-	parent     string // The rest of its path, before this node
-	isDir      bool
-	isTerminal bool
-	driveID    string // ID corresponding to file in Google Drive
-	children   map[string]*Node
+	name        string // Just of this directory/node
+	parent      string // The rest of its path, before this node
+	isDir       bool
+	isRecursive bool   // Relevant only for directories
+	driveID     string // ID corresponding to file in Google Drive
+	children    map[string]*Node
 }
 
 // Tree represents the entire tree starting from a directory
@@ -29,13 +29,14 @@ type Tree struct {
 	root *Node
 }
 
-func newNode(name, parent string, isDir, isTerminal bool) *Node {
+func newNode(name, parent string, isDir, isRecursive bool) *Node {
 	return &Node{
-		name:       name,
-		parent:     parent,
-		isDir:      isDir,
-		isTerminal: isTerminal,
-		children:   make(map[string]*Node),
+		name:        name,
+		parent:      parent,
+		isDir:       isDir,
+		isRecursive: isRecursive,
+		children:    make(map[string]*Node),
+		driveID:     "",
 	}
 }
 
