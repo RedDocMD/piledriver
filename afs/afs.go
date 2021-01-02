@@ -1,10 +1,12 @@
 package afs
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 )
 
 // An Abstract File System which mimics a file system tree
@@ -44,6 +46,22 @@ func newNode(name, parent string, isDir, isRecursive bool) *Node {
 
 func (node *Node) fullPath() string {
 	return path.Join(node.parent, node.name)
+}
+
+func (node *Node) String() string {
+	var b strings.Builder
+	fmt.Fprint(&b, node.name)
+	if node.driveID != "" {
+		fmt.Fprintf(&b, "(%s0)", node.driveID)
+	}
+	if node.isDir {
+		if node.isRecursive {
+			fmt.Fprint(&b, "dr")
+		} else {
+			fmt.Fprint(&b, "d")
+		}
+	}
+	return b.String()
 }
 
 // Explores a node, to extend it downwards
@@ -89,4 +107,30 @@ func NewTree(dir string, isRecursive bool) *Tree {
 		name: parent,
 		root: rootNode,
 	}
+}
+
+func (tree *Tree) String() string {
+	prefixString := func(level uint) string {
+		var builder strings.Builder
+		for i := level; i > uint(0); i-- {
+			fmt.Fprint(&builder, "|  ")
+		}
+		fmt.Fprint(&builder, "|--")
+		return builder.String()
+	}
+
+	var dfs func(*Node, uint, *strings.Builder)
+	dfs = func(node *Node, level uint, builder *strings.Builder) {
+		pref := prefixString(level)
+		fmt.Fprintf(builder, "%s%s\n", pref, node)
+		for _, val := range node.children {
+			dfs(val, level+1, builder)
+		}
+	}
+
+	var b strings.Builder
+	fmt.Println(&b, tree.name)
+	dfs(tree.root, 0, &b)
+
+	return b.String()
 }
