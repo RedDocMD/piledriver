@@ -1,0 +1,14 @@
+{
+    "directories": [
+        {
+            "local": "/home/deep/work/aoc",
+            "remote": "AOC",
+            "recursive": true
+        },
+        {
+            "local": "/home/deep/.config",
+            "remote": "config",
+            "recursive": false
+        }
+    ]
+}
