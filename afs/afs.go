@@ -185,3 +185,30 @@ func (tree *Tree) AddPath(path string, isDir bool) bool {
 	addPath(addNode, remaining)
 	return true
 }
+
+// Given a path, searches if it is in the tree
+func (tree *Tree) findPath(path string) (*Node, bool) {
+	topPath := tree.root.fullPath()
+	if !strings.HasPrefix(path, topPath) {
+		return nil, false
+	}
+	topPathParts := splitPath(topPath, string(filepath.Separator))
+	pathParts := splitPath(path, string(filepath.Separator))
+
+	truncatedParts := pathParts[len(topPathParts):]
+
+	var findPathInternal func(node *Node, parts []string) (*Node, bool)
+	findPathInternal = func(node *Node, parts []string) (*Node, bool) {
+		if len(parts) == 0 {
+			return node, true
+		}
+		next := parts[0]
+		child, ok := node.children[next]
+		if !ok {
+			return nil, false
+		}
+		return findPathInternal(child, parts[1:])
+	}
+
+	return findPathInternal(tree.root, truncatedParts)
+}
