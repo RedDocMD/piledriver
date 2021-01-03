@@ -20,11 +20,12 @@ import (
 // and consequently in Google Drive
 type Node struct {
 	name        string // Just of this directory/node
-	parent      string // The rest of its path, before this node
+	parentPath  string // The rest of its path, before this node
 	isDir       bool
 	isRecursive bool   // Relevant only for directories
 	driveID     string // ID corresponding to file in Google Drive
 	children    map[string]*Node
+	parentNode  *Node
 }
 
 // Tree represents the entire tree starting from a directory
@@ -33,19 +34,20 @@ type Tree struct {
 	root *Node
 }
 
-func newNode(name, parent string, isDir, isRecursive bool) *Node {
+func newNode(name, parentPath string, isDir, isRecursive bool, parentPtr *Node) *Node {
 	return &Node{
 		name:        name,
-		parent:      parent,
+		parentPath:  parentPath,
 		isDir:       isDir,
 		isRecursive: isRecursive,
 		children:    make(map[string]*Node),
+		parentNode:  parentPtr,
 		driveID:     "",
 	}
 }
 
 func (node *Node) fullPath() string {
-	return path.Join(node.parent, node.name)
+	return path.Join(node.parentPath, node.name)
 }
 
 func (node *Node) String() string {
@@ -84,7 +86,7 @@ func (node *Node) extendNode() {
 			newPath := path.Join(currPath, name)
 			if stat, err := os.Stat(newPath); !os.IsNotExist(err) {
 				newIsDir := stat.IsDir()
-				newNode := newNode(name, currPath, newIsDir, node.isRecursive)
+				newNode := newNode(name, currPath, newIsDir, node.isRecursive, node)
 				node.children[name] = newNode
 				if node.isRecursive {
 					newNode.extendNode()
@@ -100,7 +102,7 @@ func NewTree(dir string, isRecursive bool) *Tree {
 	parent := joinPath(parts[:len(parts)-1], string(filepath.Separator), true)
 	dirName := parts[len(parts)-1]
 
-	rootNode := newNode(dirName, parent, true, isRecursive)
+	rootNode := newNode(dirName, parent, true, isRecursive, nil)
 	rootNode.extendNode()
 
 	return &Tree{
@@ -159,7 +161,7 @@ func (tree *Tree) AddPath(path string, isDir bool) bool {
 		} else {
 			thisPartIsDir = true
 		}
-		childNode := newNode(parts[0], node.fullPath(), thisPartIsDir, node.isRecursive)
+		childNode := newNode(parts[0], node.fullPath(), thisPartIsDir, node.isRecursive, node)
 		node.children[parts[0]] = childNode
 		addPath(childNode, parts[1:])
 		childNode.extendNode()
