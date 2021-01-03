@@ -113,3 +113,32 @@ func TestDeletePath(t *testing.T) {
 	_, found = tree.findPath(filepath.Join(path, "dir2/file7"))
 	assert.False(found)
 }
+
+func TestRenamePath(t *testing.T) {
+	path, err := filepath.Abs("test_data/rec_dir")
+	assert := assert.New(t)
+	if err != nil {
+		log.Fatal(err)
+	}
+	tree := NewTree(path, true)
+
+	_, found := tree.findPath(filepath.Join(path, "dir1/dir3/file6"))
+	assert.True(found)
+	tree.RenamePath(filepath.Join(path, "dir1/dir3/file6"), filepath.Join(path, "dir1/dir3/newfile"))
+	_, found = tree.findPath(filepath.Join(path, "dir1/dir3/newfile"))
+	assert.True(found)
+	_, found = tree.findPath(filepath.Join(path, "dir1/dir3/file6"))
+	assert.False(found)
+
+	_, found = tree.findPath(filepath.Join(path, "dir2/file7"))
+	assert.True(found)
+	tree.RenamePath(filepath.Join(path, "dir2"), filepath.Join(path, "dirnew"))
+	_, found = tree.findPath(filepath.Join(path, "dir2"))
+	assert.False(found)
+	_, found = tree.findPath(filepath.Join(path, "dir2/file7"))
+	assert.False(found)
+	_, found = tree.findPath(filepath.Join(path, "dirnew"))
+	assert.True(found)
+	_, found = tree.findPath(filepath.Join(path, "dirnew/file7"))
+	assert.True(found)
+}

@@ -227,3 +227,30 @@ func (tree *Tree) DeletePath(path string) bool {
 	node = nil
 	return true
 }
+
+// RenamePath renames an old path to a new path
+// The newPath should actually rename the thing (file/folder) referred to by oldPath
+// The two paths should thus differ only by the last "element" in the path
+// If the rename succeeds, then returns true. else false
+func (tree *Tree) RenamePath(oldPath, newPath string) bool {
+	oldPathParts := splitPath(oldPath, string(filepath.Separator))
+	newPathParts := splitPath(newPath, string(filepath.Separator))
+
+	if len(oldPathParts) != len(newPathParts) {
+		return false
+	}
+	for i := 0; i < len(newPathParts)-1; i++ {
+		if newPathParts[i] != oldPathParts[i] {
+			return false
+		}
+	}
+
+	node, ok := tree.findPath(oldPath)
+	if !ok {
+		return false
+	}
+	node.name = newPathParts[len(newPathParts)-1]
+	delete(node.parentNode.children, oldPathParts[len(oldPathParts)-1])
+	node.parentNode.children[node.name] = node
+	return true
+}
