@@ -52,13 +52,13 @@ func (node *Node) String() string {
 	var b strings.Builder
 	fmt.Fprint(&b, node.name)
 	if node.driveID != "" {
-		fmt.Fprintf(&b, "(%s0)", node.driveID)
+		fmt.Fprintf(&b, " (%s0)", node.driveID)
 	}
 	if node.isDir {
 		if node.isRecursive {
-			fmt.Fprint(&b, "dr")
+			fmt.Fprint(&b, " dr")
 		} else {
-			fmt.Fprint(&b, "d")
+			fmt.Fprint(&b, " d")
 		}
 	}
 	return b.String()
@@ -82,7 +82,7 @@ func (node *Node) extendNode() {
 		}
 		for _, name := range contents {
 			newPath := path.Join(currPath, name)
-			if stat, err := os.Stat(newPath); os.IsExist(err) {
+			if stat, err := os.Stat(newPath); !os.IsNotExist(err) {
 				newIsDir := stat.IsDir()
 				newNode := newNode(name, currPath, newIsDir, node.isRecursive)
 				node.children[name] = newNode
@@ -95,12 +95,12 @@ func (node *Node) extendNode() {
 }
 
 // NewTree creates a new tree from a given directory
-func NewTree(dir string, isRecursive bool) *Tree {
+func NewTree(dir string, isRecursive, isAbs bool) *Tree {
 	parts := splitPath(dir, string(filepath.Separator))
-	parent := joinPath(parts[:len(parts)-1], string(filepath.Separator), true)
+	parent := joinPath(parts[:len(parts)-1], string(filepath.Separator), isAbs)
 	dirName := parts[len(parts)-1]
 
-	rootNode := newNode(parent, dirName, true, isRecursive)
+	rootNode := newNode(dirName, parent, true, isRecursive)
 	rootNode.extendNode()
 
 	return &Tree{
