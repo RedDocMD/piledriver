@@ -1,8 +1,16 @@
 package afs
 
-import "fmt"
+import (
+	"fmt"
+	"log"
+	"path/filepath"
+)
 
 func ExampleNewTree() {
-	tree := NewTree("test_data/rec_dir", true, false)
+	path, err := filepath.Abs("test_data/rec_dir")
+	if err != nil {
+		log.Fatal(err)
+	}
+	tree := NewTree(path, true)
 	fmt.Println(tree)
 }
