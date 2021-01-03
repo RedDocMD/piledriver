@@ -90,3 +90,26 @@ func TestAddPath(t *testing.T) {
 		t.Error("Cannot access tmp directory")
 	}
 }
+
+func TestDeletePath(t *testing.T) {
+	path, err := filepath.Abs("test_data/rec_dir")
+	assert := assert.New(t)
+	if err != nil {
+		log.Fatal(err)
+	}
+	tree := NewTree(path, true)
+
+	_, found := tree.findPath(filepath.Join(path, "dir1/dir3/file6"))
+	assert.True(found)
+	tree.DeletePath(filepath.Join(path, "dir1/dir3/file6"))
+	_, found = tree.findPath(filepath.Join(path, "dir1/dir3/file6"))
+	assert.False(found)
+
+	_, found = tree.findPath(filepath.Join(path, "dir2/file7"))
+	assert.True(found)
+	tree.DeletePath(filepath.Join(path, "dir2"))
+	_, found = tree.findPath(filepath.Join(path, "dir2"))
+	assert.False(found)
+	_, found = tree.findPath(filepath.Join(path, "dir2/file7"))
+	assert.False(found)
+}

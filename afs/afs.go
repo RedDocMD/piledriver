@@ -214,3 +214,16 @@ func (tree *Tree) findPath(path string) (*Node, bool) {
 
 	return findPathInternal(tree.root, truncatedParts)
 }
+
+// DeletePath removes a path from the tree is present and returns true
+// Else returns false
+func (tree *Tree) DeletePath(path string) bool {
+	node, found := tree.findPath(path)
+	if !found {
+		return false
+	}
+	parent := node.parentNode
+	delete(parent.children, node.name)
+	node = nil
+	return true
+}
