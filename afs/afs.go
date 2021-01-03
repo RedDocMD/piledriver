@@ -95,9 +95,9 @@ func (node *Node) extendNode() {
 }
 
 // NewTree creates a new tree from a given directory
-func NewTree(dir string, isRecursive, isAbs bool) *Tree {
+func NewTree(dir string, isRecursive bool) *Tree {
 	parts := splitPath(dir, string(filepath.Separator))
-	parent := joinPath(parts[:len(parts)-1], string(filepath.Separator), isAbs)
+	parent := joinPath(parts[:len(parts)-1], string(filepath.Separator), true)
 	dirName := parts[len(parts)-1]
 
 	rootNode := newNode(dirName, parent, true, isRecursive)
@@ -133,4 +133,55 @@ func (tree *Tree) String() string {
 	dfs(tree.root, 0, &b)
 
 	return b.String()
+}
+
+// AddPath adds a path to tree if the path is compatible with the tree
+// path MUST be an absolute path, as is the assumption with all paths in the tree
+// Returns true if the path was actually added
+func (tree *Tree) AddPath(path string, isDir bool) bool {
+	topPath := tree.root.fullPath()
+	if !strings.HasPrefix(path, topPath) {
+		return false
+	}
+	topPathParts := splitPath(topPath, string(filepath.Separator))
+	pathParts := splitPath(path, string(filepath.Separator))
+
+	truncatedParts := pathParts[len(topPathParts):]
+
+	var addPath func(node *Node, parts []string)
+	addPath = func(node *Node, parts []string) {
+		if len(parts) == 0 {
+			return
+		}
+		var thisPartIsDir bool
+		if len(parts) == 1 {
+			thisPartIsDir = isDir
+		} else {
+			thisPartIsDir = true
+		}
+		childNode := newNode(parts[0], node.fullPath(), thisPartIsDir, node.isRecursive)
+		node.children[parts[0]] = childNode
+		addPath(childNode, parts[1:])
+		childNode.extendNode()
+	}
+
+	var findNode func(node *Node, parts []string) (*Node, []string)
+	findNode = func(node *Node, parts []string) (*Node, []string) {
+		if len(parts) == 0 {
+			return nil, nil
+		}
+		first := parts[0]
+		child, ok := node.children[first]
+		if !ok {
+			return node, parts
+		}
+		return findNode(child, parts[1:])
+	}
+
+	addNode, remaining := findNode(tree.root, truncatedParts)
+	if addNode == nil {
+		return false
+	}
+	addPath(addNode, remaining)
+	return true
 }
