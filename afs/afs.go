@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 )
@@ -47,7 +46,7 @@ func newNode(name, parentPath string, isDir, isRecursive bool, parentPtr *Node) 
 }
 
 func (node *Node) fullPath() string {
-	return path.Join(node.parentPath, node.name)
+	return filepath.Join(node.parentPath, node.name)
 }
 
 func (node *Node) String() string {
@@ -83,7 +82,7 @@ func (node *Node) extendNode() {
 			log.Fatal(err)
 		}
 		for _, name := range contents {
-			newPath := path.Join(currPath, name)
+			newPath := filepath.Join(currPath, name)
 			if stat, err := os.Stat(newPath); !os.IsNotExist(err) {
 				newIsDir := stat.IsDir()
 				newNode := newNode(name, currPath, newIsDir, node.isRecursive, node)
