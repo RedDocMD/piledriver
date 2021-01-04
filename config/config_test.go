@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/alecthomas/assert"
@@ -11,7 +12,7 @@ import (
 func TestSimpleConfig(t *testing.T) {
 	assert := assert.New(t)
 
-	file, err := os.Open("test_data/simple_conf.json")
+	file, err := os.Open(filepath.FromSlash("test_data/simple_conf.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
