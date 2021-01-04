@@ -1,7 +1,6 @@
 package afs
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -10,22 +9,52 @@ import (
 	"github.com/alecthomas/assert"
 )
 
-func ExampleNewTree() {
+func (node *Node) extendNode() {
+	if node.isDir {
+		currPath := node.fullPath()
+		dir, err := os.Open(currPath)
+		defer dir.Close()
+		if err != nil {
+			log.Fatal(err)
+		}
+		contents, err := dir.Readdirnames(-1)
+		if err != nil {
+			log.Fatal(err)
+		}
+		for _, name := range contents {
+			newPath := filepath.Join(currPath, name)
+			if stat, err := os.Stat(newPath); !os.IsNotExist(err) {
+				newIsDir := stat.IsDir()
+				newNode := newNode(name, currPath, newIsDir, node.isRecursive, node)
+				node.children[name] = newNode
+				if node.isRecursive {
+					newNode.extendNode()
+				}
+			}
+		}
+	}
+}
+
+func constructTree() *Tree {
 	path, err := filepath.Abs(filepath.FromSlash("test_data/rec_dir"))
 	if err != nil {
 		log.Fatal(err)
 	}
 	tree := NewTree(path, true)
-	fmt.Println(tree)
+	tree.root.extendNode()
+
+	return tree
+}
+
+func ExampleNewTree() {
+	tree := constructTree()
+	log.Println(tree)
 }
 
 func TestFindPath(t *testing.T) {
-	path, err := filepath.Abs(filepath.FromSlash("test_data/rec_dir"))
 	assert := assert.New(t)
-	if err != nil {
-		log.Fatal(err)
-	}
-	tree := NewTree(path, true)
+	path, _ := filepath.Abs(filepath.FromSlash("test_data/rec_dir"))
+	tree := constructTree()
 
 	_, found := tree.findPath(path)
 	assert.True(found)
@@ -52,51 +81,29 @@ func TestFindPath(t *testing.T) {
 func TestAddPath(t *testing.T) {
 	assert := assert.New(t)
 	tempDir := os.TempDir()
-	if _, err := os.Stat(tempDir); !os.IsNotExist(err) {
-		basePath := filepath.Join(tempDir, "test")
-		err = os.Mkdir(basePath, os.ModePerm)
-		if err != nil {
-			t.Error(err)
-		}
+	basePath := filepath.Join(tempDir, "test")
 
-		tree := NewTree(basePath, true)
+	tree := NewTree(basePath, true)
 
-		newPath := filepath.Join(basePath, filepath.FromSlash("dir1/dir2"))
-		err = os.MkdirAll(newPath, os.ModePerm)
-		if err != nil {
-			t.Error(err)
-		}
-		tree.AddPath(newPath, true)
-		node, ok := tree.findPath(newPath)
-		assert.True(ok)
-		assert.True(node.isDir)
-		assert.Equal(node.name, "dir2")
+	newPath := filepath.Join(basePath, filepath.FromSlash("dir1/dir2"))
+	tree.AddPath(newPath, true)
+	node, ok := tree.findPath(newPath)
+	assert.True(ok)
+	assert.True(node.isDir)
+	assert.Equal(node.name, "dir2")
 
-		newPath = filepath.Join(basePath, filepath.FromSlash("dir1/file"))
-		file, err := os.Create(newPath)
-		defer file.Close()
-		if err != nil {
-			t.Error(err)
-		}
-		tree.AddPath(newPath, false)
-		node, ok = tree.findPath(newPath)
-		assert.True(ok)
-		assert.False(node.isDir)
-		assert.Equal(node.name, "file")
-
-		os.RemoveAll(basePath)
-	} else {
-		t.Error("Cannot access tmp directory")
-	}
+	newPath = filepath.Join(basePath, filepath.FromSlash("dir1/file"))
+	tree.AddPath(newPath, false)
+	node, ok = tree.findPath(newPath)
+	assert.True(ok)
+	assert.False(node.isDir)
+	assert.Equal(node.name, "file")
 }
 
 func TestDeletePath(t *testing.T) {
-	path, err := filepath.Abs(filepath.FromSlash("test_data/rec_dir"))
+	path, _ := filepath.Abs(filepath.FromSlash("test_data/rec_dir"))
 	assert := assert.New(t)
-	if err != nil {
-		log.Fatal(err)
-	}
-	tree := NewTree(path, true)
+	tree := constructTree()
 
 	_, found := tree.findPath(filepath.Join(path, filepath.FromSlash("dir1/dir3/file6")))
 	assert.True(found)
@@ -114,12 +121,9 @@ func TestDeletePath(t *testing.T) {
 }
 
 func TestRenamePath(t *testing.T) {
-	path, err := filepath.Abs(filepath.FromSlash("test_data/rec_dir"))
+	path, _ := filepath.Abs(filepath.FromSlash("test_data/rec_dir"))
 	assert := assert.New(t)
-	if err != nil {
-		log.Fatal(err)
-	}
-	tree := NewTree(path, true)
+	tree := constructTree()
 
 	_, found := tree.findPath(filepath.Join(path, filepath.FromSlash("dir1/dir3/file6")))
 	assert.True(found)

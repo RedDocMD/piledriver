@@ -2,8 +2,6 @@ package afs
 
 import (
 	"fmt"
-	"log"
-	"os"
 	"path/filepath"
 	"strings"
 )
@@ -65,36 +63,6 @@ func (node *Node) String() string {
 	return b.String()
 }
 
-// Explores a node, to extend it downwards
-// Nothing to explore if it's a file
-// If it's a directory and is non-recursive, add all its files (but not directories) as children
-// It it's a directory and is recursive, add all its files and recursively explore its sub-directories
-func (node *Node) extendNode() {
-	if node.isDir {
-		currPath := node.fullPath()
-		dir, err := os.Open(currPath)
-		defer dir.Close()
-		if err != nil {
-			log.Fatal(err)
-		}
-		contents, err := dir.Readdirnames(-1)
-		if err != nil {
-			log.Fatal(err)
-		}
-		for _, name := range contents {
-			newPath := filepath.Join(currPath, name)
-			if stat, err := os.Stat(newPath); !os.IsNotExist(err) {
-				newIsDir := stat.IsDir()
-				newNode := newNode(name, currPath, newIsDir, node.isRecursive, node)
-				node.children[name] = newNode
-				if node.isRecursive {
-					newNode.extendNode()
-				}
-			}
-		}
-	}
-}
-
 // NewTree creates a new tree from a given directory
 func NewTree(dir string, isRecursive bool) *Tree {
 	parts := splitPathPlatform(dir)
@@ -102,7 +70,7 @@ func NewTree(dir string, isRecursive bool) *Tree {
 	dirName := parts[len(parts)-1]
 
 	rootNode := newNode(dirName, parent, true, isRecursive, nil)
-	rootNode.extendNode()
+	// rootNode.extendNode()
 
 	return &Tree{
 		name: parent,
@@ -163,7 +131,6 @@ func (tree *Tree) AddPath(path string, isDir bool) bool {
 		childNode := newNode(parts[0], node.fullPath(), thisPartIsDir, node.isRecursive, node)
 		node.children[parts[0]] = childNode
 		addPath(childNode, parts[1:])
-		childNode.extendNode()
 	}
 
 	var findNode func(node *Node, parts []string) (*Node, []string)
