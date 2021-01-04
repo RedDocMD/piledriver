@@ -1,11 +1,12 @@
 package afs
 
 import (
+	"path/filepath"
 	"strings"
 )
 
 // Splits paths into its directories
-func splitPath(path string, sep string) []string {
+func splitPath(path, sep string) []string {
 	partions := strings.Split(path, sep)
 	var newPartitions []string
 	for _, val := range partions {
@@ -14,6 +15,10 @@ func splitPath(path string, sep string) []string {
 		}
 	}
 	return newPartitions
+}
+
+func splitPathPlatform(path string) []string {
+	return splitPath(path, string(filepath.Separator))
 }
 
 // Reverse of splitPath
@@ -26,4 +31,8 @@ func joinPath(parts []string, sep string, isAbs bool) string {
 		return "/" + joined
 	}
 	return joined
+}
+
+func joinPathPlatform(parts []string, isAbs bool) string {
+	return joinPath(parts, string(filepath.Separator), isAbs)
 }
