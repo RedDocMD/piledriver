@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path"
 	"path/filepath"
 	"testing"
 
@@ -54,7 +53,7 @@ func TestAddPath(t *testing.T) {
 	assert := assert.New(t)
 	tempDir := os.TempDir()
 	if _, err := os.Stat(tempDir); !os.IsNotExist(err) {
-		basePath := path.Join(tempDir, "test")
+		basePath := filepath.Join(tempDir, "test")
 		err = os.Mkdir(basePath, os.ModePerm)
 		if err != nil {
 			t.Error(err)
@@ -62,7 +61,7 @@ func TestAddPath(t *testing.T) {
 
 		tree := NewTree(basePath, true)
 
-		newPath := path.Join(basePath, filepath.FromSlash("dir1/dir2"))
+		newPath := filepath.Join(basePath, filepath.FromSlash("dir1/dir2"))
 		err = os.MkdirAll(newPath, os.ModePerm)
 		if err != nil {
 			t.Error(err)
@@ -73,7 +72,7 @@ func TestAddPath(t *testing.T) {
 		assert.True(node.isDir)
 		assert.Equal(node.name, "dir2")
 
-		newPath = path.Join(basePath, filepath.FromSlash("dir1/file"))
+		newPath = filepath.Join(basePath, filepath.FromSlash("dir1/file"))
 		file, err := os.Create(newPath)
 		defer file.Close()
 		if err != nil {
