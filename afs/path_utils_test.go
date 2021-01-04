@@ -90,7 +90,7 @@ func TestUnixRelDirPathSplit(t *testing.T) {
 
 func TestWindowsAbsPathSplit(t *testing.T) {
 	assert := assert.New(t)
-	path := `C:\\home\joe\learns\to\walk`
+	path := `C:\home\joe\learns\to\walk`
 	parts := splitPath(path, "\\")
 	partsExp := []string{"C:", "home", "joe", "learns", "to", "walk"}
 	assert.Equal(len(partsExp), len(parts))
@@ -103,13 +103,13 @@ func TestWindowsAbsPathJoin(t *testing.T) {
 	assert := assert.New(t)
 	parts := []string{"C:", "home", "joe", "learns", "to", "walk"}
 	path := joinPath(parts, "\\", true)
-	pathExp := `C:\\home\joe\learns\to\walk`
+	pathExp := `C:\home\joe\learns\to\walk`
 	assert.Equal(pathExp, path)
 }
 
 func TestWindowsAbsDirPathSplit(t *testing.T) {
 	assert := assert.New(t)
-	path := `C:\\home\joe\learns\to\walk\`
+	path := `C:\home\joe\learns\to\walk\`
 	parts := splitPath(path, "\\")
 	partsExp := []string{"C:", "home", "joe", "learns", "to", "walk"}
 	assert.Equal(len(partsExp), len(parts))
