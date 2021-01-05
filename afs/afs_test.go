@@ -9,9 +9,8 @@ import (
 	"github.com/alecthomas/assert"
 )
 
-func (node *Node) extendNode() {
+func extendNode(node *Node, currPath string) {
 	if node.isDir {
-		currPath := node.fullPath()
 		dir, err := os.Open(currPath)
 		defer dir.Close()
 		if err != nil {
@@ -25,10 +24,10 @@ func (node *Node) extendNode() {
 			newPath := filepath.Join(currPath, name)
 			if stat, err := os.Stat(newPath); !os.IsNotExist(err) {
 				newIsDir := stat.IsDir()
-				newNode := newNode(name, currPath, newIsDir, node.isRecursive, node)
+				newNode := newNode(name, newIsDir, node.isRecursive, node)
 				node.children[name] = newNode
 				if node.isRecursive {
-					newNode.extendNode()
+					extendNode(newNode, newPath)
 				}
 			}
 		}
@@ -41,7 +40,7 @@ func constructTree() *Tree {
 		log.Fatal(err)
 	}
 	tree := NewTree(path, true)
-	tree.root.extendNode()
+	extendNode(tree.root, "test_data/rec_dir")
 
 	return tree
 }

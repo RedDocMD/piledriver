@@ -18,7 +18,6 @@ import (
 // and consequently in Google Drive
 type Node struct {
 	name        string // Just of this directory/node
-	parentPath  string // The rest of its path, before this node
 	isDir       bool
 	isRecursive bool   // Relevant only for directories
 	driveID     string // ID corresponding to file in Google Drive
@@ -32,10 +31,9 @@ type Tree struct {
 	root *Node
 }
 
-func newNode(name, parentPath string, isDir, isRecursive bool, parentPtr *Node) *Node {
+func newNode(name string, isDir, isRecursive bool, parentPtr *Node) *Node {
 	return &Node{
 		name:        name,
-		parentPath:  parentPath,
 		isDir:       isDir,
 		isRecursive: isRecursive,
 		children:    make(map[string]*Node),
@@ -44,9 +42,9 @@ func newNode(name, parentPath string, isDir, isRecursive bool, parentPtr *Node) 
 	}
 }
 
-func (node *Node) fullPath() string {
-	return filepath.Join(node.parentPath, node.name)
-}
+// func (node *Node) fullPath() string {
+// 	return filepath.Join(node.parentPath, node.name)
+// }
 
 func (node *Node) String() string {
 	var b strings.Builder
@@ -70,7 +68,7 @@ func NewTree(dir string, isRecursive bool) *Tree {
 	parent := joinPathPlatform(parts[:len(parts)-1], true)
 	dirName := parts[len(parts)-1]
 
-	rootNode := newNode(dirName, parent, true, isRecursive, nil)
+	rootNode := newNode(dirName, true, isRecursive, nil)
 	// rootNode.extendNode()
 
 	return &Tree{
@@ -109,7 +107,7 @@ func (tree *Tree) String() string {
 // path MUST be an absolute path, as is the assumption with all paths in the tree
 // Returns true if the path was actually added
 func (tree *Tree) AddPath(path string, isDir bool) bool {
-	topPath := tree.root.fullPath()
+	topPath := tree.RootPath()
 	if !strings.HasPrefix(path, topPath) {
 		return false
 	}
@@ -129,7 +127,7 @@ func (tree *Tree) AddPath(path string, isDir bool) bool {
 		} else {
 			thisPartIsDir = true
 		}
-		childNode := newNode(parts[0], node.fullPath(), thisPartIsDir, node.isRecursive, node)
+		childNode := newNode(parts[0], thisPartIsDir, node.isRecursive, node)
 		node.children[parts[0]] = childNode
 		addPath(childNode, parts[1:])
 	}
@@ -157,7 +155,7 @@ func (tree *Tree) AddPath(path string, isDir bool) bool {
 
 // Given a path, searches if it is in the tree
 func (tree *Tree) findPath(path string) (*Node, bool) {
-	topPath := tree.root.fullPath()
+	topPath := tree.RootPath()
 	if !strings.HasPrefix(path, topPath) {
 		return nil, false
 	}
