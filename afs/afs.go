@@ -1,6 +1,7 @@
 package afs
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -219,4 +220,35 @@ func (tree *Tree) RenamePath(oldPath, newPath string) bool {
 	delete(node.parentNode.children, oldPathParts[len(oldPathParts)-1])
 	node.parentNode.children[node.name] = node
 	return true
+}
+
+// RootPath returns path of root of tree
+func (tree *Tree) RootPath() string {
+	return filepath.Join(tree.name, tree.root.name)
+}
+
+// Name returns the name field of tree
+func (tree *Tree) Name() string {
+	return tree.name
+}
+
+// IsDir returns whether the given path is a directory
+// Returns error if path is not found in the tree
+func (tree *Tree) IsDir(path string) (bool, error) {
+	node, ok := tree.findPath(path)
+	if !ok {
+		return false, errors.New("Path not found: " + path)
+	}
+	return node.isDir, nil
+}
+
+// IsRecursive returns whether path is marked as recursive
+// Makes sense only for directories
+// Returns an error if path is not in tree
+func (tree *Tree) IsRecursive(path string) (bool, error) {
+	node, ok := tree.findPath(path)
+	if !ok {
+		return false, errors.New("Path not found: " + path)
+	}
+	return node.isRecursive, nil
 }
