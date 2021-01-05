@@ -250,3 +250,9 @@ func (tree *Tree) IsRecursive(path string) (bool, error) {
 	}
 	return node.isRecursive, nil
 }
+
+// ContainsPath returns if the tree contains the given path
+func (tree *Tree) ContainsPath(path string) bool {
+	_, ok := tree.findPath(path)
+	return ok
+}

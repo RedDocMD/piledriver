@@ -5,8 +5,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 
+	"github.com/RedDocMD/Piledriver/afs"
 	"github.com/fsnotify/fsnotify"
 )
 
@@ -16,54 +16,75 @@ func WatchLoop(state *State) {
 	watcher := state.watcher
 	events := state.FileEvents
 
+	renamePending := false
+	pathToBeRenamed := ""
+
 	for {
 		select {
 		case event, ok := <-watcher.Events:
 			if !ok {
-				log.Printf("exiting from watch loop")
+				log.Println("exiting from watch loop")
 				return
 			}
-			fmt.Println(event)
+			log.Print(event)
 
 			path := event.Name
 			var category EventCategory
 			pushEvent := true
-			isDir, err := state.isDir(path)
-			if err != nil {
-				log.Fatal(err)
+
+			var isDir bool
+			var err error
+			if !renamePending {
+				isDir, err = state.isDir(path)
+				if err != nil {
+					stat, err := os.Stat(path)
+					if os.IsNotExist(err) {
+						log.Println("Failed to open:", path)
+					} else {
+						isDir = stat.IsDir()
+					}
+				}
+			} else {
+				isDir = false // Not necessary, but shuts up the compiler
 			}
 
 			switch event.Op {
 			case fsnotify.Create:
-				if isDir {
-					parts := strings.Split(path, string(filepath.Separator))
-					parentDir := "/" + filepath.Join(parts[:len(parts)-1]...)
-					if state.isDirRecursive(parentDir) {
-						state.AddDir(path, true)
+				if renamePending {
+					if ok := state.renamePath(pathToBeRenamed, path); !ok {
+						log.Printf("Cannot rename %s to %s", pathToBeRenamed, path)
 					}
-					category = DirectoryCreated
 				} else {
-					state.addFile(path)
-					category = FileCreated
+					if isDir {
+						parts := afs.SplitPathPlatform(path)
+						parentDir := afs.JoinPathPlatform(parts[:len(parts)-1], true)
+						isRec, err := state.isDirRecursive(parentDir)
+						if err != nil {
+							log.Println(err)
+						}
+						state.AddDir(path, isRec)
+						category = DirectoryCreated
+					} else {
+						state.addFile(path)
+						category = FileCreated
+					}
 				}
 			case fsnotify.Remove:
 				if isDir {
 					category = DirectoryDeleted
-					state.delDir(path)
 				} else {
 					category = FileDeleted
-					state.delFile(path)
+				}
+				if ok := state.delPath(path); !ok {
+					log.Println("Cannot delete: ", path)
 				}
 			case fsnotify.Write:
 				category = FileWritten
-				// TODO: Put state updating
 			case fsnotify.Rename:
-				// TODO: Put state updating
-				if isDir {
-					category = DirectoryRenamed
-					// Remove all old paths
-				} else {
-					category = FileRenamed
+				pushEvent = false
+				if state.pathExists(path) {
+					renamePending = true
+					pathToBeRenamed = path
 				}
 			default:
 				pushEvent = false

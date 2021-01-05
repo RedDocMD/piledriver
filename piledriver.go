@@ -7,7 +7,7 @@ import (
 func main() {
 	state := utils.NewState()
 	state.InitWatcher()
-	state.AddDir("/tmp", true)
+	state.AddDir("/home/deep/work/dump", true)
 	go utils.WatchLoop(state)
 	for {
 	}
