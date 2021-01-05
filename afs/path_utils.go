@@ -17,7 +17,7 @@ func splitPath(path, sep string) []string {
 	return newPartitions
 }
 
-func splitPathPlatform(path string) []string {
+func SplitPathPlatform(path string) []string {
 	return splitPath(path, string(filepath.Separator))
 }
 
@@ -33,6 +33,6 @@ func joinPath(parts []string, sep string, isAbs bool) string {
 	return joined
 }
 
-func joinPathPlatform(parts []string, isAbs bool) string {
+func JoinPathPlatform(parts []string, isAbs bool) string {
 	return joinPath(parts, string(filepath.Separator), isAbs)
 }

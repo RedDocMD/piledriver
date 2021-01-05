@@ -64,8 +64,8 @@ func (node *Node) String() string {
 
 // NewTree creates a new tree from a given directory
 func NewTree(dir string, isRecursive bool) *Tree {
-	parts := splitPathPlatform(dir)
-	parent := joinPathPlatform(parts[:len(parts)-1], true)
+	parts := SplitPathPlatform(dir)
+	parent := JoinPathPlatform(parts[:len(parts)-1], true)
 	dirName := parts[len(parts)-1]
 
 	rootNode := newNode(dirName, true, isRecursive, nil)
@@ -111,8 +111,8 @@ func (tree *Tree) AddPath(path string, isDir bool) bool {
 	if !strings.HasPrefix(path, topPath) {
 		return false
 	}
-	topPathParts := splitPathPlatform(topPath)
-	pathParts := splitPathPlatform(path)
+	topPathParts := SplitPathPlatform(topPath)
+	pathParts := SplitPathPlatform(path)
 
 	truncatedParts := pathParts[len(topPathParts):]
 
@@ -159,8 +159,8 @@ func (tree *Tree) findPath(path string) (*Node, bool) {
 	if !strings.HasPrefix(path, topPath) {
 		return nil, false
 	}
-	topPathParts := splitPathPlatform(topPath)
-	pathParts := splitPathPlatform(path)
+	topPathParts := SplitPathPlatform(topPath)
+	pathParts := SplitPathPlatform(path)
 
 	truncatedParts := pathParts[len(topPathParts):]
 
@@ -198,8 +198,8 @@ func (tree *Tree) DeletePath(path string) bool {
 // The two paths should thus differ only by the last "element" in the path
 // If the rename succeeds, then returns true. else false
 func (tree *Tree) RenamePath(oldPath, newPath string) bool {
-	oldPathParts := splitPathPlatform(oldPath)
-	newPathParts := splitPathPlatform(newPath)
+	oldPathParts := SplitPathPlatform(oldPath)
+	newPathParts := SplitPathPlatform(newPath)
 
 	if len(oldPathParts) != len(newPathParts) {
 		return false
