@@ -38,9 +38,9 @@ func (ev Event) String() string {
 	case DirectoryDeleted:
 		catString = "DIRECTORY DELETED"
 	case FileRenamed:
-		catString = "FILE"
+		catString = "FILE RENAMED"
 	case DirectoryRenamed:
-		catString = "DIRECTORY"
+		catString = "DIRECTORY RENAMED"
 	case FileWritten:
 		catString = "FILE WRITTEN"
 	default:
