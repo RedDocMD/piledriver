@@ -134,35 +134,31 @@ func (state *State) isDirRecursive(path string) (bool, error) {
 // Adds a file and returns whether it was actually added
 func (state *State) addFile(path string) bool {
 	// Assume parent directory has been added before
-	added := false
 	for name := range state.trees {
 		if strings.HasPrefix(path, name) {
-			state.trees[name].AddPath(path, false)
-			added = true
+			done := state.trees[name].AddPath(path, false)
+			return done
 		}
 	}
-	return added
+	return false
 }
 
 func (state *State) delPath(path string) bool {
-	done := false
 	for name := range state.trees {
 		if strings.HasPrefix(path, name) {
-			state.trees[name].DeletePath(path)
-			done = true
+			done := state.trees[name].DeletePath(path)
+			return done
 		}
 	}
-	return done
+	return false
 }
 
 func (state *State) renamePath(oldPath, newPath string) bool {
-	done := false
 	for name, tree := range state.trees {
 		if strings.HasPrefix(oldPath, name) {
 			isDir, _ := tree.IsDir(oldPath)
 			isRecursive, _ := tree.IsRecursive(oldPath)
-			tree.RenamePath(oldPath, newPath)
-			done = true
+			done := tree.RenamePath(oldPath, newPath)
 			if isDir {
 				if isRecursive {
 					addDirRecursive(newPath, state.watcher)
@@ -170,9 +166,10 @@ func (state *State) renamePath(oldPath, newPath string) bool {
 					state.watcher.Add(newPath)
 				}
 			}
+			return done
 		}
 	}
-	return done
+	return false
 }
 
 func (state *State) pathExists(path string) bool {

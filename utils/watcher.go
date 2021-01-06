@@ -43,7 +43,7 @@ func WatchLoop(state *State) {
 					}
 				}
 			} else {
-				isDir = false // Not necessary, but shuts up the compiler
+				isDir, _ = state.isDir(pathToBeRenamed)
 			}
 
 			switch event.Op {
@@ -51,12 +51,14 @@ func WatchLoop(state *State) {
 				if renamePending {
 					if ok := state.renamePath(pathToBeRenamed, path); !ok {
 						log.Printf("Cannot rename %s to %s", pathToBeRenamed, path)
+						pushEvent = false
 					}
 					if isDir {
 						category = DirectoryRenamed
 					} else {
 						category = FileRenamed
 					}
+					renamePending = false
 				} else {
 					if isDir {
 						parts := afs.SplitPathPlatform(path)
@@ -80,6 +82,7 @@ func WatchLoop(state *State) {
 				}
 				if ok := state.delPath(path); !ok {
 					log.Println("Cannot delete: ", path)
+					pushEvent = false
 				}
 			case fsnotify.Write:
 				category = FileWritten
