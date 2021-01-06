@@ -16,6 +16,7 @@ const (
 
 // Event is the internal representation of file watcher events
 type Event struct {
+	OldPath  string
 	Path     string
 	Category EventCategory
 }

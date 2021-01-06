@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -26,7 +25,6 @@ func WatchLoop(state *State) {
 				log.Println("exiting from watch loop")
 				return
 			}
-			log.Print(event)
 
 			path := event.Name
 			var category EventCategory
@@ -53,6 +51,11 @@ func WatchLoop(state *State) {
 				if renamePending {
 					if ok := state.renamePath(pathToBeRenamed, path); !ok {
 						log.Printf("Cannot rename %s to %s", pathToBeRenamed, path)
+					}
+					if isDir {
+						category = DirectoryRenamed
+					} else {
+						category = FileRenamed
 					}
 				} else {
 					if isDir {
@@ -93,6 +96,7 @@ func WatchLoop(state *State) {
 			if pushEvent {
 				events <- Event{
 					Path:     path,
+					OldPath:  pathToBeRenamed,
 					Category: category,
 				}
 			}
@@ -100,7 +104,7 @@ func WatchLoop(state *State) {
 			if !ok {
 				return
 			}
-			fmt.Println(event)
+			log.Println("Watcher error: ", event)
 		}
 	}
 }
