@@ -8,7 +8,5 @@ func main() {
 	state := utils.NewState()
 	state.InitWatcher()
 	state.AddDir("/home/deep/work/dump", true)
-	go utils.WatchLoop(state)
-	for {
-	}
+	utils.WatchLoop(state)
 }
