@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/RedDocMD/Piledriver/utils"
+	"github.com/RedDocMD/piledriver/utils"
 )
 
 func main() {
