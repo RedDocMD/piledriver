@@ -1,4 +1,4 @@
-module github.com/RedDocMD/Piledriver
+module github.com/RedDocMD/piledriver
 
 go 1.15
 
