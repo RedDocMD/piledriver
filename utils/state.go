@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/RedDocMD/Piledriver/afs"
-	"github.com/RedDocMD/Piledriver/config"
+	"github.com/RedDocMD/piledriver/afs"
+	"github.com/RedDocMD/piledriver/config"
 	"github.com/fsnotify/fsnotify"
 	"google.golang.org/api/drive/v3"
 )
