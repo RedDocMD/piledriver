@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/RedDocMD/Piledriver/afs"
+	"github.com/RedDocMD/piledriver/afs"
 	"github.com/fsnotify/fsnotify"
 )
 
