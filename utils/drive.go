@@ -2,47 +2,168 @@ package utils
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/big"
 	"net/http"
 	"os"
 	"path"
+	"sync"
 
 	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
 	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/option"
 )
 
-var clientSecret = [430]byte{123, 34, 105, 110, 115, 116, 97, 108, 108, 101, 100, 34, 58, 123, 34, 99, 108, 105, 101, 110, 116, 95, 105, 100, 34, 58, 34, 55, 48, 54, 49, 55, 48, 54, 54, 56, 56, 53, 53, 45, 101, 51, 100, 108, 112, 102, 56, 111, 102, 48, 116, 103, 108, 111, 97, 118, 101, 52, 104, 118, 98, 103, 54, 116, 108, 111, 49, 55, 117, 114, 117, 116, 46, 97, 112, 112, 115, 46, 103, 111, 111, 103, 108, 101, 117, 115, 101, 114, 99, 111, 110, 116, 101, 110, 116, 46, 99, 111, 109, 34, 44, 34, 112, 114, 111, 106, 101, 99, 116, 95, 105, 100, 34, 58, 34, 112, 105, 108, 101, 100, 114, 105, 118, 101, 114, 45, 49, 54, 48, 56, 51, 49, 53, 53, 51, 50, 53, 56, 51, 34, 44, 34, 97, 117, 116, 104, 95, 117, 114, 105, 34, 58, 34, 104, 116, 116, 112, 115, 58, 47, 47, 97, 99, 99, 111, 117, 110, 116, 115, 46, 103, 111, 111, 103, 108, 101, 46, 99, 111, 109, 47, 111, 47, 111, 97, 117, 116, 104, 50, 47, 97, 117, 116, 104, 34, 44, 34, 116, 111, 107, 101, 110, 95, 117, 114, 105, 34, 58, 34, 104, 116, 116, 112, 115, 58, 47, 47, 111, 97, 117, 116, 104, 50, 46, 103, 111, 111, 103, 108, 101, 97, 112, 105, 115, 46, 99, 111, 109, 47, 116, 111, 107, 101, 110, 34, 44, 34, 97, 117, 116, 104, 95, 112, 114, 111, 118, 105, 100, 101, 114, 95, 120, 53, 48, 57, 95, 99, 101, 114, 116, 95, 117, 114, 108, 34, 58, 34, 104, 116, 116, 112, 115, 58, 47, 47, 119, 119, 119, 46, 103, 111, 111, 103, 108, 101, 97, 112, 105, 115, 46, 99, 111, 109, 47, 111, 97, 117, 116, 104, 50, 47, 118, 49, 47, 99, 101, 114, 116, 115, 34, 44, 34, 99, 108, 105, 101, 110, 116, 95, 115, 101, 99, 114, 101, 116, 34, 58, 34, 122, 115, 76, 119, 56, 89, 55, 107, 56, 109, 118, 82, 81, 117, 118, 88, 70, 109, 53, 107, 98, 78, 104, 85, 34, 44, 34, 114, 101, 100, 105, 114, 101, 99, 116, 95, 117, 114, 105, 115, 34, 58, 91, 34, 117, 114, 110, 58, 105, 101, 116, 102, 58, 119, 103, 58, 111, 97, 117, 116, 104, 58, 50, 46, 48, 58, 111, 111, 98, 34, 44, 34, 104, 116, 116, 112, 58, 47, 47, 108, 111, 99, 97, 108, 104, 111, 115, 116, 34, 93, 125, 125}
+const clientId = "706170668855-5j1vgust696v8cuj1ei8fs0r12vruo1r.apps.googleusercontent.com"
 
-func getClient(config *oauth2.Config) (context.Context, *http.Client) {
-	tokFile := "token.json"
-	tok, err := tokenFromFile(tokFile)
-	if err != nil {
-		tok = getTokenFromWeb(config)
-		saveToken(tokFile, tok)
-	}
+// Yeah its not really a secret ;)
+const clientSecret = "RYnJ8ATUBnY9qI9WrnRMw4o1"
+
+// The following is a hack to not have to open files
+// I just don't know any better :(
+const successResponse = `
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-eOJMYsd53ii+scO/bJGFsiCZc+5NDVN2yr8+0RDqr0Ql0h+rP48ckxlpbzKgwra6" crossorigin="anonymous">
+    <title>Success</title>
+</head>
+
+<body>
+    <div class="container-fluid mt-3">
+        <p class="display-3 text-center">Piledriver</p>
+        <div class="text-center">
+            <div class="fw-bold text-success fs-5">Auhentication succeeded!</div>You may now return to the application.
+        </div>
+    </div>
+</body>
+
+</html>
+`
+
+const failureResponse = `
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-eOJMYsd53ii+scO/bJGFsiCZc+5NDVN2yr8+0RDqr0Ql0h+rP48ckxlpbzKgwra6" crossorigin="anonymous">
+    <title>Failure</title>
+</head>
+
+<body>
+    <div class="container-fluid mt-3">
+        <p class="display-3 text-center">Piledriver</p>
+        <div class="text-center">
+            <div class="fw-bold text-danger fs-5">Authentication failed!</div>Please return to the application for more information
+        </div>
+    </div>
+</body>
+
+</html>
+`
+
+func GetDriveService(tokenLocation string) *drive.Service {
 	ctx := context.Background()
-	return ctx, config.Client(ctx, tok)
+	var tok *oauth2.Token
+
+	redirectPath := "http://127.0.0.1"
+	redirectPort := 4598
+
+	conf := &oauth2.Config{
+		ClientID:     clientId,
+		ClientSecret: clientSecret,
+		Scopes:       []string{drive.DriveFileScope},
+		Endpoint: oauth2.Endpoint{
+			AuthURL:  "https://accounts.google.com/o/oauth2/auth",
+			TokenURL: "https://oauth2.googleapis.com/token",
+		},
+		RedirectURL: fmt.Sprintf("%s:%d", redirectPath, redirectPort),
+	}
+
+	// First try from file
+	tok, err := tokenFromFile(tokenLocation)
+	if err != nil {
+		// Then get it from the web
+		randLim := big.NewInt(1)
+		randLim.Lsh(randLim, 200)
+		csrfVal, err := rand.Int(rand.Reader, randLim)
+		if err != nil {
+			log.Fatalf("Error while generating CSRF token: %s\n", err)
+		}
+
+		url := conf.AuthCodeURL(fmt.Sprint(csrfVal), oauth2.AccessTypeOffline)
+		fmt.Printf("Open the following URL in your browser:\n%s\n\n", url)
+
+		var wg sync.WaitGroup
+		authChan := make(chan map[string]string)
+		go func() {
+			wg.Add(1)
+			handleOAuthRedirect(redirectPort, &wg, &authChan)
+		}()
+		wg.Wait()
+
+		ans := <-authChan
+
+		var code string
+		if val, ok := ans["code"]; ok {
+			code = val
+		} else if val, ok := ans["error"]; ok {
+			fmt.Println("Failed to authenticate!")
+			fmt.Println("Reason:", val)
+			os.Exit(1)
+		} else {
+			fmt.Println("Something unexpected happened while authenticating")
+			os.Exit(1)
+		}
+
+		tok, err := conf.Exchange(ctx, code)
+		if err != nil {
+			log.Fatalf("Failed to get token\n")
+		}
+		saveToken(tokenLocation, tok)
+	}
+
+	driveService, err := drive.NewService(ctx, option.WithTokenSource(conf.TokenSource(ctx, tok)))
+	if err != nil {
+		log.Fatalf("Failed to create drive client: %s\n", err)
+	}
+	return driveService
 }
 
-func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
-	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
-	fmt.Printf("Go to the following link in your browser then type the "+
-		"authorization code: \n%v\n", authURL)
+func handleOAuthRedirect(port int, wg *sync.WaitGroup, ans *chan map[string]string) {
+	successBytes := []byte(successResponse)
+	failureBytes := []byte(failureResponse)
 
-	var authCode string
-	if _, err := fmt.Scan(&authCode); err != nil {
-		log.Fatalf("Unable to read authorization code %v", err)
-	}
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		queries := r.URL.Query()
+		resp := make(map[string]string)
 
-	tok, err := config.Exchange(context.TODO(), authCode)
-	if err != nil {
-		log.Fatalf("Unable to retrieve token from web %v", err)
-	}
-	return tok
+		if code, ok := queries["code"]; ok {
+			resp["code"] = code[0]
+			w.Write(successBytes)
+		} else if err, ok := queries["error"]; ok {
+			resp["error"] = err[0]
+			w.Write(failureBytes)
+		} else {
+			w.Write([]byte("Unknown problem occured"))
+		}
+
+		*ans <- resp
+		wg.Done()
+	})
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), nil))
 }
 
 func tokenFromFile(file string) (*oauth2.Token, error) {
@@ -64,20 +185,6 @@ func saveToken(path string, token *oauth2.Token) {
 	}
 	defer f.Close()
 	json.NewEncoder(f).Encode(token)
-}
-
-// RetrieveDriveService gets the drive service via an HTTP client
-func RetrieveDriveService() *drive.Service {
-	clientConfig, err := google.ConfigFromJSON(clientSecret[:], drive.DriveFileScope)
-	if err != nil {
-		log.Fatalf("Unable to parse client secret file to config: %v", err)
-	}
-	context, client := getClient(clientConfig)
-	service, err := drive.NewService(context, option.WithHTTPClient(client))
-	if err != nil {
-		log.Fatalf("Unable to retrieve Drive client: %v", err)
-	}
-	return service
 }
 
 // CreateFile creates the file in drive, with the parent directory specified by

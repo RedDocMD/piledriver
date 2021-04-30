@@ -34,7 +34,7 @@ func NewState() *State {
 // InitService initializes the service field
 func (state *State) InitService() {
 	if state.service == nil {
-		state.service = RetrieveDriveService()
+		state.service = GetDriveService("/home/dknite/.piledriver.token")
 	}
 }
 

@@ -6,8 +6,9 @@ import (
 
 func main() {
 	state := utils.NewState()
+	state.InitService()
 	state.InitWatcher()
-	state.AddDir("/home/deep/work/dump", true)
+	state.AddDir("/home/dknite/work/dump", true)
 	go utils.ExecuteEvents(state.FileEvents)
 	utils.WatchLoop(state)
 }
