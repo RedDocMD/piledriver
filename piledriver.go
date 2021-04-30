@@ -5,10 +5,10 @@ import (
 )
 
 func main() {
-	// state := utils.NewState()
-	// state.InitWatcher()
-	// state.AddDir("/home/deep/work/dump", true)
-	// go utils.ExecuteEvents(state.FileEvents)
-	// utils.WatchLoop(state)
-	utils.Authorize()
+	state := utils.NewState()
+	state.InitService()
+	state.InitWatcher()
+	state.AddDir("/home/dknite/work/dump", true)
+	go utils.ExecuteEvents(state.FileEvents)
+	utils.WatchLoop(state)
 }

@@ -13,7 +13,6 @@ import (
 	"sync"
 
 	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
 	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/option"
 )
@@ -75,8 +74,10 @@ const failureResponse = `
 </html>
 `
 
-func Authorize() {
-	// ctx := context.Background()
+func GetDriveService(tokenLocation string) *drive.Service {
+	ctx := context.Background()
+	var tok *oauth2.Token
+
 	redirectPath := "http://127.0.0.1"
 	redirectPort := 4598
 
@@ -91,37 +92,54 @@ func Authorize() {
 		RedirectURL: fmt.Sprintf("%s:%d", redirectPath, redirectPort),
 	}
 
-	randLim := big.NewInt(1)
-	randLim.Lsh(randLim, 200)
-	csrfVal, err := rand.Int(rand.Reader, randLim)
+	// First try from file
+	tok, err := tokenFromFile(tokenLocation)
 	if err != nil {
-		log.Fatalf("Error while generating CSRF token: %s\n", err)
+		// Then get it from the web
+		randLim := big.NewInt(1)
+		randLim.Lsh(randLim, 200)
+		csrfVal, err := rand.Int(rand.Reader, randLim)
+		if err != nil {
+			log.Fatalf("Error while generating CSRF token: %s\n", err)
+		}
+
+		url := conf.AuthCodeURL(fmt.Sprint(csrfVal), oauth2.AccessTypeOffline)
+		fmt.Printf("Open the following URL in your browser:\n%s\n\n", url)
+
+		var wg sync.WaitGroup
+		authChan := make(chan map[string]string)
+		go func() {
+			wg.Add(1)
+			handleOAuthRedirect(redirectPort, &wg, &authChan)
+		}()
+		wg.Wait()
+
+		ans := <-authChan
+
+		var code string
+		if val, ok := ans["code"]; ok {
+			code = val
+		} else if val, ok := ans["error"]; ok {
+			fmt.Println("Failed to authenticate!")
+			fmt.Println("Reason:", val)
+			os.Exit(1)
+		} else {
+			fmt.Println("Something unexpected happened while authenticating")
+			os.Exit(1)
+		}
+
+		tok, err := conf.Exchange(ctx, code)
+		if err != nil {
+			log.Fatalf("Failed to get token\n")
+		}
+		saveToken(tokenLocation, tok)
 	}
 
-	url := conf.AuthCodeURL(fmt.Sprint(csrfVal), oauth2.AccessTypeOffline)
-	fmt.Printf("Open the following URL in your browser:\n%s\n\n", url)
-
-	var wg sync.WaitGroup
-	authChan := make(chan map[string]string, 1)
-	wg.Add(1)
-	go handleOAuthRedirect(redirectPort, &wg, &authChan)
-	wg.Wait()
-
-	ans := <-authChan
-
-	var code string
-	if val, ok := ans["code"]; ok {
-		code = val
-	} else if val, ok := ans["error"]; ok {
-		fmt.Println("Failed to authenticate!")
-		fmt.Println("Reason:", val)
-		os.Exit(1)
-	} else {
-		fmt.Println("Something unexpected happened while authenticating")
-		os.Exit(1)
+	driveService, err := drive.NewService(ctx, option.WithTokenSource(conf.TokenSource(ctx, tok)))
+	if err != nil {
+		log.Fatalf("Failed to create drive client: %s\n", err)
 	}
-
-	fmt.Println(code)
+	return driveService
 }
 
 func handleOAuthRedirect(port int, wg *sync.WaitGroup, ans *chan map[string]string) {
@@ -148,34 +166,6 @@ func handleOAuthRedirect(port int, wg *sync.WaitGroup, ans *chan map[string]stri
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), nil))
 }
 
-func getClient(config *oauth2.Config) (context.Context, *http.Client) {
-	tokFile := "token.json"
-	tok, err := tokenFromFile(tokFile)
-	if err != nil {
-		tok = getTokenFromWeb(config)
-		saveToken(tokFile, tok)
-	}
-	ctx := context.Background()
-	return ctx, config.Client(ctx, tok)
-}
-
-func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
-	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
-	fmt.Printf("Go to the following link in your browser then type the "+
-		"authorization code: \n%v\n", authURL)
-
-	var authCode string
-	if _, err := fmt.Scan(&authCode); err != nil {
-		log.Fatalf("Unable to read authorization code %v", err)
-	}
-
-	tok, err := config.Exchange(context.TODO(), authCode)
-	if err != nil {
-		log.Fatalf("Unable to retrieve token from web %v", err)
-	}
-	return tok
-}
-
 func tokenFromFile(file string) (*oauth2.Token, error) {
 	f, err := os.Open(file)
 	if err != nil {
@@ -195,20 +185,6 @@ func saveToken(path string, token *oauth2.Token) {
 	}
 	defer f.Close()
 	json.NewEncoder(f).Encode(token)
-}
-
-// RetrieveDriveService gets the drive service via an HTTP client
-func RetrieveDriveService() *drive.Service {
-	clientConfig, err := google.ConfigFromJSON([]byte(clientSecret), drive.DriveFileScope)
-	if err != nil {
-		log.Fatalf("Unable to parse client secret file to config: %v", err)
-	}
-	context, client := getClient(clientConfig)
-	service, err := drive.NewService(context, option.WithHTTPClient(client))
-	if err != nil {
-		log.Fatalf("Unable to retrieve Drive client: %v", err)
-	}
-	return service
 }
 
 // CreateFile creates the file in drive, with the parent directory specified by
