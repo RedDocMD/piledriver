@@ -2,9 +2,11 @@ package utils
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/big"
 	"net/http"
 	"os"
 	"path"
@@ -15,7 +17,32 @@ import (
 	"google.golang.org/api/option"
 )
 
-var clientSecret = [430]byte{123, 34, 105, 110, 115, 116, 97, 108, 108, 101, 100, 34, 58, 123, 34, 99, 108, 105, 101, 110, 116, 95, 105, 100, 34, 58, 34, 55, 48, 54, 49, 55, 48, 54, 54, 56, 56, 53, 53, 45, 101, 51, 100, 108, 112, 102, 56, 111, 102, 48, 116, 103, 108, 111, 97, 118, 101, 52, 104, 118, 98, 103, 54, 116, 108, 111, 49, 55, 117, 114, 117, 116, 46, 97, 112, 112, 115, 46, 103, 111, 111, 103, 108, 101, 117, 115, 101, 114, 99, 111, 110, 116, 101, 110, 116, 46, 99, 111, 109, 34, 44, 34, 112, 114, 111, 106, 101, 99, 116, 95, 105, 100, 34, 58, 34, 112, 105, 108, 101, 100, 114, 105, 118, 101, 114, 45, 49, 54, 48, 56, 51, 49, 53, 53, 51, 50, 53, 56, 51, 34, 44, 34, 97, 117, 116, 104, 95, 117, 114, 105, 34, 58, 34, 104, 116, 116, 112, 115, 58, 47, 47, 97, 99, 99, 111, 117, 110, 116, 115, 46, 103, 111, 111, 103, 108, 101, 46, 99, 111, 109, 47, 111, 47, 111, 97, 117, 116, 104, 50, 47, 97, 117, 116, 104, 34, 44, 34, 116, 111, 107, 101, 110, 95, 117, 114, 105, 34, 58, 34, 104, 116, 116, 112, 115, 58, 47, 47, 111, 97, 117, 116, 104, 50, 46, 103, 111, 111, 103, 108, 101, 97, 112, 105, 115, 46, 99, 111, 109, 47, 116, 111, 107, 101, 110, 34, 44, 34, 97, 117, 116, 104, 95, 112, 114, 111, 118, 105, 100, 101, 114, 95, 120, 53, 48, 57, 95, 99, 101, 114, 116, 95, 117, 114, 108, 34, 58, 34, 104, 116, 116, 112, 115, 58, 47, 47, 119, 119, 119, 46, 103, 111, 111, 103, 108, 101, 97, 112, 105, 115, 46, 99, 111, 109, 47, 111, 97, 117, 116, 104, 50, 47, 118, 49, 47, 99, 101, 114, 116, 115, 34, 44, 34, 99, 108, 105, 101, 110, 116, 95, 115, 101, 99, 114, 101, 116, 34, 58, 34, 122, 115, 76, 119, 56, 89, 55, 107, 56, 109, 118, 82, 81, 117, 118, 88, 70, 109, 53, 107, 98, 78, 104, 85, 34, 44, 34, 114, 101, 100, 105, 114, 101, 99, 116, 95, 117, 114, 105, 115, 34, 58, 91, 34, 117, 114, 110, 58, 105, 101, 116, 102, 58, 119, 103, 58, 111, 97, 117, 116, 104, 58, 50, 46, 48, 58, 111, 111, 98, 34, 44, 34, 104, 116, 116, 112, 58, 47, 47, 108, 111, 99, 97, 108, 104, 111, 115, 116, 34, 93, 125, 125}
+const clientId = "706170668855-5j1vgust696v8cuj1ei8fs0r12vruo1r.apps.googleusercontent.com"
+
+// Yeah its not really a secret ;)
+const clientSecret = "RYnJ8ATUBnY9qI9WrnRMw4o1"
+
+func Authorize() {
+	// ctx := context.Background()
+	conf := &oauth2.Config{
+		ClientID:     clientId,
+		ClientSecret: clientSecret,
+		Scopes:       []string{drive.DriveFileScope},
+		Endpoint: oauth2.Endpoint{
+			AuthURL:  "https://accounts.google.com/o/oauth2/auth",
+			TokenURL: "https://oauth2.googleapis.com/token",
+		},
+		RedirectURL: "http://localhost:4000",
+	}
+	randLim := big.NewInt(1)
+	randLim.Lsh(randLim, 200)
+	csrfVal, err := rand.Int(rand.Reader, randLim)
+	if err != nil {
+		log.Fatalf("Error while generating CSRF token: %s\n", err)
+	}
+	url := conf.AuthCodeURL(fmt.Sprint(csrfVal), oauth2.AccessTypeOffline)
+	fmt.Printf("Open the following URL in your browser:\n%s\n", url)
+}
 
 func getClient(config *oauth2.Config) (context.Context, *http.Client) {
 	tokFile := "token.json"
@@ -68,7 +95,7 @@ func saveToken(path string, token *oauth2.Token) {
 
 // RetrieveDriveService gets the drive service via an HTTP client
 func RetrieveDriveService() *drive.Service {
-	clientConfig, err := google.ConfigFromJSON(clientSecret[:], drive.DriveFileScope)
+	clientConfig, err := google.ConfigFromJSON([]byte(clientSecret), drive.DriveFileScope)
 	if err != nil {
 		log.Fatalf("Unable to parse client secret file to config: %v", err)
 	}
