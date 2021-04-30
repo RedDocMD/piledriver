@@ -90,38 +90,59 @@ func Authorize() {
 		},
 		RedirectURL: fmt.Sprintf("%s:%d", redirectPath, redirectPort),
 	}
+
 	randLim := big.NewInt(1)
 	randLim.Lsh(randLim, 200)
 	csrfVal, err := rand.Int(rand.Reader, randLim)
 	if err != nil {
 		log.Fatalf("Error while generating CSRF token: %s\n", err)
 	}
+
 	url := conf.AuthCodeURL(fmt.Sprint(csrfVal), oauth2.AccessTypeOffline)
 	fmt.Printf("Open the following URL in your browser:\n%s\n\n", url)
+
 	var wg sync.WaitGroup
+	authChan := make(chan map[string]string, 1)
 	wg.Add(1)
-	go codeListener(redirectPort, &wg)
+	go handleOAuthRedirect(redirectPort, &wg, &authChan)
 	wg.Wait()
+
+	ans := <-authChan
+
+	var code string
+	if val, ok := ans["code"]; ok {
+		code = val
+	} else if val, ok := ans["error"]; ok {
+		fmt.Println("Failed to authenticate!")
+		fmt.Println("Reason:", val)
+		os.Exit(1)
+	} else {
+		fmt.Println("Something unexpected happened while authenticating")
+		os.Exit(1)
+	}
+
+	fmt.Println(code)
 }
 
-func codeListener(port int, wg *sync.WaitGroup) {
+func handleOAuthRedirect(port int, wg *sync.WaitGroup, ans *chan map[string]string) {
 	successBytes := []byte(successResponse)
 	failureBytes := []byte(failureResponse)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		queries := r.URL.Query()
-		code, ok := queries["code"]
-		if ok {
-			fmt.Println("Code", code[0])
+		resp := make(map[string]string)
+
+		if code, ok := queries["code"]; ok {
+			resp["code"] = code[0]
 			w.Write(successBytes)
+		} else if err, ok := queries["error"]; ok {
+			resp["error"] = err[0]
+			w.Write(failureBytes)
 		} else {
-			err, ok := queries["error"]
-			if ok {
-				fmt.Println("Error:", err[0])
-				w.Write(failureBytes)
-			}
+			w.Write([]byte("Unknown problem occured"))
 		}
 
+		*ans <- resp
 		wg.Done()
 	})
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), nil))
