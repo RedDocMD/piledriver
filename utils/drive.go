@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"sync"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -24,6 +25,9 @@ const clientSecret = "RYnJ8ATUBnY9qI9WrnRMw4o1"
 
 func Authorize() {
 	// ctx := context.Background()
+	redirectPath := "http://127.0.0.1"
+	redirectPort := 4000
+
 	conf := &oauth2.Config{
 		ClientID:     clientId,
 		ClientSecret: clientSecret,
@@ -32,7 +36,7 @@ func Authorize() {
 			AuthURL:  "https://accounts.google.com/o/oauth2/auth",
 			TokenURL: "https://oauth2.googleapis.com/token",
 		},
-		RedirectURL: "http://localhost:4000",
+		RedirectURL: fmt.Sprintf("%s:%d", redirectPath, redirectPort),
 	}
 	randLim := big.NewInt(1)
 	randLim.Lsh(randLim, 200)
@@ -41,7 +45,31 @@ func Authorize() {
 		log.Fatalf("Error while generating CSRF token: %s\n", err)
 	}
 	url := conf.AuthCodeURL(fmt.Sprint(csrfVal), oauth2.AccessTypeOffline)
-	fmt.Printf("Open the following URL in your browser:\n%s\n", url)
+	fmt.Printf("Open the following URL in your browser:\n%s\n\n", url)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go codeListener(redirectPort, &wg)
+	wg.Wait()
+}
+
+func codeListener(port int, wg *sync.WaitGroup) {
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		queries := r.URL.Query()
+		code, ok := queries["code"]
+		if ok {
+			fmt.Println("Code", code[0])
+			w.Write([]byte("You can now go back to your application!"))
+		} else {
+			err, ok := queries["error"]
+			if ok {
+				fmt.Println("Error:", err[0])
+				w.Write([]byte("Failed to authorize!"))
+			}
+		}
+
+		wg.Done()
+	})
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), nil))
 }
 
 func getClient(config *oauth2.Config) (context.Context, *http.Client) {
