@@ -39,4 +39,6 @@ func TestSimpleConfig(t *testing.T) {
 	assert.Equal("/home/deep/.config", dir2.Local)
 	assert.Equal("config", dir2.Remote)
 	assert.False(dir2.Recursive)
+
+	assert.Equal("/home/deep/.piledriver.token", config.TokenPath)
 }
