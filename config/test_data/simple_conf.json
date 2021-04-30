@@ -10,5 +10,6 @@
             "remote": "config",
             "recursive": false
         }
-    ]
+    ],
+    "tokenPath": "/home/deep/.piledriver.token"
 }
