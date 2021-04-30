@@ -23,10 +23,62 @@ const clientId = "706170668855-5j1vgust696v8cuj1ei8fs0r12vruo1r.apps.googleuserc
 // Yeah its not really a secret ;)
 const clientSecret = "RYnJ8ATUBnY9qI9WrnRMw4o1"
 
+// The following is a hack to not have to open files
+// I just don't know any better :(
+const successResponse = `
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-eOJMYsd53ii+scO/bJGFsiCZc+5NDVN2yr8+0RDqr0Ql0h+rP48ckxlpbzKgwra6" crossorigin="anonymous">
+    <title>Success</title>
+</head>
+
+<body>
+    <div class="container-fluid mt-3">
+        <p class="display-3 text-center">Piledriver</p>
+        <div class="text-center">
+            <div class="fw-bold text-success fs-5">Auhentication succeeded!</div>You may now return to the application.
+        </div>
+    </div>
+</body>
+
+</html>
+`
+
+const failureResponse = `
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-eOJMYsd53ii+scO/bJGFsiCZc+5NDVN2yr8+0RDqr0Ql0h+rP48ckxlpbzKgwra6" crossorigin="anonymous">
+    <title>Failure</title>
+</head>
+
+<body>
+    <div class="container-fluid mt-3">
+        <p class="display-3 text-center">Piledriver</p>
+        <div class="text-center">
+            <div class="fw-bold text-danger fs-5">Authentication failed!</div>Please return to the application for more information
+        </div>
+    </div>
+</body>
+
+</html>
+`
+
 func Authorize() {
 	// ctx := context.Background()
 	redirectPath := "http://127.0.0.1"
-	redirectPort := 4000
+	redirectPort := 4598
 
 	conf := &oauth2.Config{
 		ClientID:     clientId,
@@ -53,17 +105,20 @@ func Authorize() {
 }
 
 func codeListener(port int, wg *sync.WaitGroup) {
+	successBytes := []byte(successResponse)
+	failureBytes := []byte(failureResponse)
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		queries := r.URL.Query()
 		code, ok := queries["code"]
 		if ok {
 			fmt.Println("Code", code[0])
-			w.Write([]byte("You can now go back to your application!"))
+			w.Write(successBytes)
 		} else {
 			err, ok := queries["error"]
 			if ok {
 				fmt.Println("Error:", err[0])
-				w.Write([]byte("Failed to authorize!"))
+				w.Write(failureBytes)
 			}
 		}
 
