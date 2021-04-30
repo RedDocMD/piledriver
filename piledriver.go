@@ -38,7 +38,9 @@ func main() {
 	state := utils.NewState()
 	state.InitService(config.TokenPath)
 	state.InitWatcher()
-	state.AddDir("/home/dknite/work/dump", true)
+	for _, dir := range config.Directories {
+		state.AddDir(dir.Local, dir.Recursive)
+	}
 	go utils.ExecuteEvents(state.FileEvents)
 	utils.WatchLoop(state)
 }
