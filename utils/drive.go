@@ -75,8 +75,12 @@ const failureResponse = `
 `
 
 func GetDriveService(tokenLocation string) *drive.Service {
+	tok, err := tokenFromFile(tokenLocation)
+	if err != nil {
+		log.Fatalf("Piledriver has not been authenticated: please run \"piledriver auth\"\n")
+	}
+
 	ctx := context.Background()
-	var tok *oauth2.Token
 
 	redirectPath := "http://127.0.0.1"
 	redirectPort := 4598
@@ -92,54 +96,67 @@ func GetDriveService(tokenLocation string) *drive.Service {
 		RedirectURL: fmt.Sprintf("%s:%d", redirectPath, redirectPort),
 	}
 
-	// First try from file
-	tok, err := tokenFromFile(tokenLocation)
-	if err != nil {
-		// Then get it from the web
-		randLim := big.NewInt(1)
-		randLim.Lsh(randLim, 200)
-		csrfVal, err := rand.Int(rand.Reader, randLim)
-		if err != nil {
-			log.Fatalf("Error while generating CSRF token: %s\n", err)
-		}
-
-		url := conf.AuthCodeURL(fmt.Sprint(csrfVal), oauth2.AccessTypeOffline)
-		fmt.Printf("Open the following URL in your browser:\n%s\n\n", url)
-
-		var wg sync.WaitGroup
-		authChan := make(chan map[string]string)
-		go func() {
-			wg.Add(1)
-			handleOAuthRedirect(redirectPort, &wg, &authChan)
-		}()
-		wg.Wait()
-
-		ans := <-authChan
-
-		var code string
-		if val, ok := ans["code"]; ok {
-			code = val
-		} else if val, ok := ans["error"]; ok {
-			fmt.Println("Failed to authenticate!")
-			fmt.Println("Reason:", val)
-			os.Exit(1)
-		} else {
-			fmt.Println("Something unexpected happened while authenticating")
-			os.Exit(1)
-		}
-
-		tok, err := conf.Exchange(ctx, code)
-		if err != nil {
-			log.Fatalf("Failed to get token\n")
-		}
-		saveToken(tokenLocation, tok)
-	}
-
 	driveService, err := drive.NewService(ctx, option.WithTokenSource(conf.TokenSource(ctx, tok)))
 	if err != nil {
 		log.Fatalf("Failed to create drive client: %s\n", err)
 	}
 	return driveService
+}
+
+func AuthorizeApp(tokenLocation string) {
+	ctx := context.Background()
+
+	redirectPath := "http://127.0.0.1"
+	redirectPort := 4598
+
+	conf := &oauth2.Config{
+		ClientID:     clientId,
+		ClientSecret: clientSecret,
+		Scopes:       []string{drive.DriveFileScope},
+		Endpoint: oauth2.Endpoint{
+			AuthURL:  "https://accounts.google.com/o/oauth2/auth",
+			TokenURL: "https://oauth2.googleapis.com/token",
+		},
+		RedirectURL: fmt.Sprintf("%s:%d", redirectPath, redirectPort),
+	}
+
+	randLim := big.NewInt(1)
+	randLim.Lsh(randLim, 200)
+	csrfVal, err := rand.Int(rand.Reader, randLim)
+	if err != nil {
+		log.Fatalf("Error while generating CSRF token: %s\n", err)
+	}
+
+	url := conf.AuthCodeURL(fmt.Sprint(csrfVal), oauth2.AccessTypeOffline)
+	fmt.Printf("Open the following URL in your browser:\n%s\n\n", url)
+
+	var wg sync.WaitGroup
+	authChan := make(chan map[string]string)
+	go func() {
+		wg.Add(1)
+		handleOAuthRedirect(redirectPort, &wg, &authChan)
+	}()
+	wg.Wait()
+
+	ans := <-authChan
+
+	var code string
+	if val, ok := ans["code"]; ok {
+		code = val
+	} else if val, ok := ans["error"]; ok {
+		fmt.Println("Failed to authenticate!")
+		fmt.Println("Reason:", val)
+		os.Exit(1)
+	} else {
+		fmt.Println("Something unexpected happened while authenticating")
+		os.Exit(1)
+	}
+
+	tok, err := conf.Exchange(ctx, code)
+	if err != nil {
+		log.Fatalf("Failed to get token\n")
+	}
+	saveToken(tokenLocation, tok)
 }
 
 func handleOAuthRedirect(port int, wg *sync.WaitGroup, ans *chan map[string]string) {
