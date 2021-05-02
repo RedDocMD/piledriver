@@ -40,6 +40,7 @@ func Execute() error {
 func init() {
 	cobra.OnInitialize(initConfig)
 	rootCmd.AddCommand(versionCmd)
+	rootCmd.AddCommand(authCmd)
 }
 
 func initConfig() {
