@@ -54,16 +54,6 @@ func (state *State) Service() *drive.Service {
 	return state.service
 }
 
-// AddID adds in the ID of a path, returning true
-// Returns false if it already exists, doesn't overwrite
-// func (state *State) AddID(path, id string) bool {
-// 	if _, ok := state.pathID[path]; ok {
-// 		return false
-// 	}
-// 	state.pathID[path] = id
-// 	return true
-// }
-
 func (state *State) scanDir(dir string, recursive bool) {
 	// Assume that dir has already been added to state.trees
 	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
@@ -175,6 +165,15 @@ func (state *State) renamePath(oldPath, newPath string) bool {
 func (state *State) pathExists(path string) bool {
 	for _, tree := range state.trees {
 		if tree.ContainsPath(path) {
+			return true
+		}
+	}
+	return false
+}
+
+func (state *State) attachID(path, id string) bool {
+	for _, tree := range state.trees {
+		if tree.AttachID(path, id) {
 			return true
 		}
 	}
