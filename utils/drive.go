@@ -17,7 +17,7 @@ import (
 	"google.golang.org/api/option"
 )
 
-const clientId = "706170668855-5j1vgust696v8cuj1ei8fs0r12vruo1r.apps.googleusercontent.com"
+const clientID = "706170668855-5j1vgust696v8cuj1ei8fs0r12vruo1r.apps.googleusercontent.com"
 
 // Yeah its not really a secret ;)
 const clientSecret = "RYnJ8ATUBnY9qI9WrnRMw4o1"
@@ -74,6 +74,9 @@ const failureResponse = `
 </html>
 `
 
+// GetDriveService reads the token from the file denoted by tokenLocation
+// and then returns the Google Drive service. If it cannot find the token file,
+// it errors out and stops the program.
 func GetDriveService(tokenLocation string) *drive.Service {
 	tok, err := tokenFromFile(tokenLocation)
 	if err != nil {
@@ -86,7 +89,7 @@ func GetDriveService(tokenLocation string) *drive.Service {
 	redirectPort := 4598
 
 	conf := &oauth2.Config{
-		ClientID:     clientId,
+		ClientID:     clientID,
 		ClientSecret: clientSecret,
 		Scopes:       []string{drive.DriveFileScope},
 		Endpoint: oauth2.Endpoint{
@@ -103,6 +106,8 @@ func GetDriveService(tokenLocation string) *drive.Service {
 	return driveService
 }
 
+// AuthorizeApp triggers the OAuth 2.0 web authentication
+// for Piledriver
 func AuthorizeApp(tokenLocation string) {
 	ctx := context.Background()
 
@@ -110,7 +115,7 @@ func AuthorizeApp(tokenLocation string) {
 	redirectPort := 4598
 
 	conf := &oauth2.Config{
-		ClientID:     clientId,
+		ClientID:     clientID,
 		ClientSecret: clientSecret,
 		Scopes:       []string{drive.DriveFileScope},
 		Endpoint: oauth2.Endpoint{

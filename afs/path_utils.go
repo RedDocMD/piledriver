@@ -17,6 +17,7 @@ func splitPath(path, sep string) []string {
 	return newPartitions
 }
 
+// SplitPathPlatform splits a path string, letting the stdlib decide the path seperator
 func SplitPathPlatform(path string) []string {
 	return splitPath(path, string(filepath.Separator))
 }
@@ -33,6 +34,7 @@ func joinPath(parts []string, sep string, isAbs bool) string {
 	return joined
 }
 
+// JoinPathPlatform joins a path string, letting the stdlib decide the path seperator
 func JoinPathPlatform(parts []string, isAbs bool) string {
 	return joinPath(parts, string(filepath.Separator), isAbs)
 }

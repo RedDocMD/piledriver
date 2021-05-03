@@ -33,6 +33,7 @@ var rootCmd = &cobra.Command{
 	},
 }
 
+// Execute is the top-level command execute - call this from main
 func Execute() error {
 	return rootCmd.Execute()
 }
