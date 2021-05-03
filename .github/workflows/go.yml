@@ -29,11 +29,17 @@ jobs:
     - name: Get dependencies
       run: go get -v -t -d ./...
 
-    - name: Test
+    - name: Test Linux
+      if: ${{ runner.os == 'Linux' }}
       run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+    
+    - name: Test Windows
+      if: ${{ runner.os == 'Windows' }}
+      run: go test -v ./...
 
-    - name: Upload coverage report
+    - name: Upload coverage report (only from Linux)
       uses: codecov/codecov-action@v1
+      if: ${{ runner.os == 'Linux' }}
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: coverage.txt
