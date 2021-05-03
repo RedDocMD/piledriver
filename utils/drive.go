@@ -216,8 +216,7 @@ func saveToken(path string, token *oauth2.Token) {
 func CreateFile(
 	service *drive.Service,
 	local string,
-	parentID string,
-	queue chan interface{}) error {
+	parentID string) error {
 
 	filename := path.Base(local)
 	driveFile := &drive.File{
@@ -230,13 +229,9 @@ func CreateFile(
 	}
 	defer localfile.Close()
 	call := service.Files.Create(driveFile).Media(localfile)
-	if queue != nil {
-		queue <- call
-	} else {
-		_, err := call.Do()
-		if err != nil {
-			return err
-		}
+	_, err = call.Do()
+	if err != nil {
+		return err
 	}
 	return nil
 }
