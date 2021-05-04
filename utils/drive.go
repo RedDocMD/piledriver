@@ -219,7 +219,7 @@ type PathID struct {
 // parentID and filename same as input file.
 // It does NOT check for the validity of parentID.
 // If queue is nil, the Do() will be executed in this method itself
-func CreateFile(service *drive.Service, local string, outChan chan PathID, parentID string) (string, error) {
+func CreateFile(service *drive.Service, local string, parentID string) (string, error) {
 	filename := path.Base(local)
 	driveFile := &drive.File{
 		Name:    filename,
@@ -231,16 +231,12 @@ func CreateFile(service *drive.Service, local string, outChan chan PathID, paren
 	}
 	defer localfile.Close()
 	driveFile, err = service.Files.Create(driveFile).Media(localfile).Do()
-	outChan <- PathID{
-		path: local,
-		id:   driveFile.Id,
-	}
 	return driveFile.Id, err
 }
 
 // CreateFolder creates a folder in drive, with a parent directory specified by parentID
 // If no parent directories are specified, then it is not set
-func CreateFolder(service *drive.Service, local string, outChan chan PathID, parentID ...string) (string, error) {
+func CreateFolder(service *drive.Service, local string, parentID ...string) (string, error) {
 	parts := afs.SplitPathPlatform(local)
 	dir := &drive.File{
 		Name:     parts[len(parts)-1],
@@ -248,10 +244,6 @@ func CreateFolder(service *drive.Service, local string, outChan chan PathID, par
 		Parents:  parentID,
 	}
 	file, err := service.Files.Create(dir).Do()
-	outChan <- PathID{
-		path: local,
-		id:   file.Id,
-	}
 	return file.Id, err
 }
 
@@ -281,4 +273,28 @@ func QueryFileID(service *drive.Service, local string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("Didn't find %s in you Drive", local)
+}
+
+func QueryAllContents(service *drive.Service) ([]*drive.File, error) {
+	nextPageToken := ""
+	var nonTrashFiles []*drive.File
+
+	for {
+		listCall := service.Files.List().
+			Fields("nextPageToken, files(name, id, trashed, parents, mimeType)").
+			PageToken(nextPageToken)
+		list, err := listCall.Do()
+		if err != nil {
+			return nil, err
+		}
+		for _, file := range list.Files {
+			if !file.Trashed {
+				nonTrashFiles = append(nonTrashFiles, file)
+			}
+		}
+		if nextPageToken == "" {
+			break
+		}
+	}
+	return nonTrashFiles, nil
 }

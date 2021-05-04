@@ -12,12 +12,11 @@ import (
 var service *drive.Service
 
 func createTestFile() {
-	outChan := make(chan PathID, 10)
-	id, err := CreateFolder(service, "piledriver", outChan)
+	id, err := CreateFolder(service, "piledriver")
 	if err != nil {
 		log.Fatalln(err)
 	}
-	_, err = CreateFile(service, "test_data/speed", outChan, id)
+	_, err = CreateFile(service, "test_data/speed", id)
 	if err != nil {
 		log.Fatalln(err)
 	}

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+
+	"google.golang.org/api/drive/v3"
 )
 
 // An Abstract File System which mimics a file system tree
@@ -42,10 +44,6 @@ func newNode(name string, isDir, isRecursive bool, parentPtr *Node) *Node {
 	}
 }
 
-// func (node *Node) fullPath() string {
-// 	return filepath.Join(node.parentPath, node.name)
-// }
-
 func (node *Node) String() string {
 	var b strings.Builder
 	fmt.Fprint(&b, node.name)
@@ -69,12 +67,56 @@ func NewTree(dir string, isRecursive bool) *Tree {
 	dirName := parts[len(parts)-1]
 
 	rootNode := newNode(dirName, true, isRecursive, nil)
-	// rootNode.extendNode()
 
 	return &Tree{
 		name: parent,
 		root: rootNode,
 	}
+}
+
+// TreeFromDrive reconstructs the tree from the list of files
+// retrieved from Google Drive
+func NewTreeFromDrive(files []*drive.File, rootPath string) (*Tree, error) {
+	rootId := ""
+	rootPathParts := SplitPathPlatform(rootPath)
+	rootName := rootPathParts[len(rootPathParts)-1]
+	childrenOf := make(map[string][]*drive.File)
+	for _, file := range files {
+		if rootName == file.Name {
+			rootId = file.Id
+		}
+		parentId := file.Parents[0]
+		childrenOf[parentId] = append(childrenOf[parentId], file)
+	}
+	if rootId == "" {
+		return nil, fmt.Errorf("can't find id for %s", rootPath)
+	}
+
+	rootNode := newNode(rootName, true, true, nil)
+	rootNode.driveID = rootId
+
+	// Do BFS
+	queue := []*Node{rootNode}
+	for len(queue) != 0 {
+		node := queue[0]
+		queue = queue[1:]
+		children, ok := childrenOf[node.driveID]
+		if ok {
+			for _, child := range children {
+				isDir := child.MimeType == "application/vnd.google-apps.folder"
+				childNode := newNode(child.Name, isDir, true, node)
+				childNode.driveID = child.Id
+				node.children[child.Name] = childNode
+				queue = append(queue, childNode)
+			}
+		}
+	}
+
+	tree := &Tree{
+		name: "",
+		root: rootNode,
+	}
+	return tree, nil
 }
 
 func (tree *Tree) String() string {
