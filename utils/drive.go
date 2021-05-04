@@ -256,18 +256,28 @@ func CreateFolder(service *drive.Service, local string, outChan chan PathID, par
 }
 
 func QueryFileID(service *drive.Service, local string) (string, error) {
-	listCall := service.Files.List()
-	listCall.PageSize(1000)
-	listCall.Fields("*")
-	list, err := listCall.Do()
-	if err != nil {
-		return "", err
-	}
 	parts := afs.SplitPathPlatform(local)
 	name := parts[len(parts)-1]
-	for _, file := range list.Files {
-		if file.Name == name {
-			return file.Id, nil
+
+	nextPageToken := ""
+
+	for {
+		listCall := service.Files.List().
+			Fields("nextPageToken, files(name, id)")
+		if nextPageToken != "" {
+			listCall = listCall.PageToken(nextPageToken)
+		}
+		list, err := listCall.Do()
+		if err != nil {
+			return "", err
+		}
+		for _, file := range list.Files {
+			if file.Name == name {
+				return file.Id, nil
+			}
+		}
+		if nextPageToken == "" {
+			break
 		}
 	}
 	return "", fmt.Errorf("Didn't find %s in you Drive", local)

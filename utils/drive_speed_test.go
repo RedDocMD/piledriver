@@ -34,14 +34,16 @@ func TestMain(t *testing.M) {
 	log.Printf("Using %s as token path", tokenPath)
 	service = GetDriveService(tokenPath)
 	createTestFile()
+	log.Println("Created test file")
 	os.Exit(t.Run())
 }
 
-func BenchmarkListSpeed(t *testing.B) {
-	for i := 0; i < t.N; i++ {
+func BenchmarkListSpeed(b *testing.B) {
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
 		_, err := QueryFileID(service, "piledriver/speed")
 		if err != nil {
-			t.Error(err)
+			b.Error(err)
 		}
 	}
 }
