@@ -10,8 +10,8 @@ import (
 func TestEncode(t *testing.T) {
 	assert := assert.New(t)
 	tree := NewTree("hello", true)
-	addPathAndExpect(assert, tree, "hello/moron/file1", false)
-	addPathAndExpect(assert, tree, "hello/moron/file2", false)
+	addPathAndExpect(assert, tree, JoinPathPlatform([]string{"hello", "moron", "file1"}, false), false)
+	addPathAndExpect(assert, tree, JoinPathPlatform([]string{"hello", "moron", "file2"}, false), false)
 }
 
 func addPathAndExpect(a *assert.Assertions, tree *Tree, path string, isDir bool) {
