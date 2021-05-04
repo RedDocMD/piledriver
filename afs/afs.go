@@ -256,3 +256,13 @@ func (tree *Tree) ContainsPath(path string) bool {
 	_, ok := tree.findPath(path)
 	return ok
 }
+
+// AttachID attaches the Google Drive id to a file
+func (tree *Tree) AttachID(path, id string) bool {
+	node, ok := tree.findPath(path)
+	if !ok {
+		return false
+	}
+	node.driveID = id
+	return true
+}

@@ -28,7 +28,11 @@ var rootCmd = &cobra.Command{
 		for _, dir := range config.Directories {
 			state.AddDir(dir.Local, dir.Recursive)
 		}
-		go utils.ExecuteEvents(state.FileEvents)
+
+		const noOfWorkers int = 12
+		for i := 0; i < noOfWorkers; i++ {
+			go utils.ExecuteEvents(state.FileEvents)
+		}
 		utils.WatchLoop(state)
 	},
 }

@@ -12,6 +12,7 @@ import (
 	"path"
 	"sync"
 
+	"github.com/RedDocMD/piledriver/afs"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/option"
@@ -209,16 +210,16 @@ func saveToken(path string, token *oauth2.Token) {
 	json.NewEncoder(f).Encode(token)
 }
 
+type PathID struct {
+	path string
+	id   string
+}
+
 // CreateFile creates the file in drive, with the parent directory specified by
 // parentID and filename same as input file.
 // It does NOT check for the validity of parentID.
 // If queue is nil, the Do() will be executed in this method itself
-func CreateFile(
-	service *drive.Service,
-	local string,
-	parentID string,
-	queue chan interface{}) error {
-
+func CreateFile(service *drive.Service, local string, outChan chan PathID, parentID string) (string, error) {
 	filename := path.Base(local)
 	driveFile := &drive.File{
 		Name:    filename,
@@ -226,28 +227,58 @@ func CreateFile(
 	}
 	localfile, err := os.Open(local)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer localfile.Close()
-	call := service.Files.Create(driveFile).Media(localfile)
-	if queue != nil {
-		queue <- call
-	} else {
-		_, err := call.Do()
-		if err != nil {
-			return err
-		}
+	driveFile, err = service.Files.Create(driveFile).Media(localfile).Do()
+	outChan <- PathID{
+		path: local,
+		id:   driveFile.Id,
 	}
-	return nil
+	return driveFile.Id, err
 }
 
 // CreateFolder creates a folder in drive, with a parent directory specified by parentID
 // If no parent directories are specified, then it is not set
-func CreateFolder(service *drive.Service, name string, parentID ...string) (*drive.File, error) {
+func CreateFolder(service *drive.Service, local string, outChan chan PathID, parentID ...string) (string, error) {
+	parts := afs.SplitPathPlatform(local)
 	dir := &drive.File{
-		Name:     name,
+		Name:     parts[len(parts)-1],
 		MimeType: "application/vnd.google-apps.folder",
 		Parents:  parentID,
 	}
-	return service.Files.Create(dir).Do()
+	file, err := service.Files.Create(dir).Do()
+	outChan <- PathID{
+		path: local,
+		id:   file.Id,
+	}
+	return file.Id, err
+}
+
+func QueryFileID(service *drive.Service, local string) (string, error) {
+	parts := afs.SplitPathPlatform(local)
+	name := parts[len(parts)-1]
+
+	nextPageToken := ""
+
+	for {
+		listCall := service.Files.List().
+			Fields("nextPageToken, files(name, id)")
+		if nextPageToken != "" {
+			listCall = listCall.PageToken(nextPageToken)
+		}
+		list, err := listCall.Do()
+		if err != nil {
+			return "", err
+		}
+		for _, file := range list.Files {
+			if file.Name == name {
+				return file.Id, nil
+			}
+		}
+		if nextPageToken == "" {
+			break
+		}
+	}
+	return "", fmt.Errorf("Didn't find %s in you Drive", local)
 }
