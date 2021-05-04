@@ -23,7 +23,7 @@ func createTestFile() {
 	}
 }
 
-func TestMain(t *testing.M) {
+func createService() {
 	homedir, err := os.UserHomeDir()
 	if err != nil {
 		log.Fatalf("Failed to find homedir: %s\n", err)
@@ -31,15 +31,14 @@ func TestMain(t *testing.M) {
 	homedirParts := afs.SplitPathPlatform(homedir)
 	tokenPathParts := append(homedirParts, []string{".config", ".piledriver.token"}...)
 	tokenPath := afs.JoinPathPlatform(tokenPathParts, true)
-	log.Printf("Using %s as token path", tokenPath)
 	service = GetDriveService(tokenPath)
-	createTestFile()
-	log.Println("Created test file")
-	os.Exit(t.Run())
 }
 
 func BenchmarkListSpeed(b *testing.B) {
+	createService()
+	createTestFile()
 	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
 		_, err := QueryFileID(service, "piledriver/speed")
 		if err != nil {
