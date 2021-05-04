@@ -23,6 +23,12 @@ func main() {
 		log.Fatalln("Failed to retrieve file list:", err)
 	}
 	for _, file := range files {
-		fmt.Printf("%s => %s (parent = %s)\n", file.Name, file.Id, file.Parents[0])
+		fmt.Printf("%s => %s (parent = %s, mimeType = %s)\n", file.Name, file.Id, file.Parents[0], file.MimeType)
 	}
+
+	tree, err := afs.NewTreeFromDrive(files, "tree_dir")
+	if err != nil {
+		fmt.Printf("Failed to convert drive contents to tree: %s", err)
+	}
+	fmt.Println(tree)
 }

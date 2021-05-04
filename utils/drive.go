@@ -281,7 +281,7 @@ func QueryAllContents(service *drive.Service) ([]*drive.File, error) {
 
 	for {
 		listCall := service.Files.List().
-			Fields("nextPageToken, files(name, id, trashed, parents)").
+			Fields("nextPageToken, files(name, id, trashed, parents, mimeType)").
 			PageToken(nextPageToken)
 		list, err := listCall.Do()
 		if err != nil {
