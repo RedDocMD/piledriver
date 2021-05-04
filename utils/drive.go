@@ -219,7 +219,7 @@ type PathID struct {
 // parentID and filename same as input file.
 // It does NOT check for the validity of parentID.
 // If queue is nil, the Do() will be executed in this method itself
-func CreateFile(service *drive.Service, local string, outChan chan PathID, parentID string) error {
+func CreateFile(service *drive.Service, local string, outChan chan PathID, parentID string) (string, error) {
 	filename := path.Base(local)
 	driveFile := &drive.File{
 		Name:    filename,
@@ -227,7 +227,7 @@ func CreateFile(service *drive.Service, local string, outChan chan PathID, paren
 	}
 	localfile, err := os.Open(local)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer localfile.Close()
 	driveFile, err = service.Files.Create(driveFile).Media(localfile).Do()
@@ -235,12 +235,12 @@ func CreateFile(service *drive.Service, local string, outChan chan PathID, paren
 		path: local,
 		id:   driveFile.Id,
 	}
-	return err
+	return driveFile.Id, err
 }
 
 // CreateFolder creates a folder in drive, with a parent directory specified by parentID
 // If no parent directories are specified, then it is not set
-func CreateFolder(service *drive.Service, local string, outChan chan PathID, parentID ...string) error {
+func CreateFolder(service *drive.Service, local string, outChan chan PathID, parentID ...string) (string, error) {
 	parts := afs.SplitPathPlatform(local)
 	dir := &drive.File{
 		Name:     parts[len(parts)-1],
@@ -252,5 +252,23 @@ func CreateFolder(service *drive.Service, local string, outChan chan PathID, par
 		path: local,
 		id:   file.Id,
 	}
-	return err
+	return file.Id, err
+}
+
+func QueryFileID(service *drive.Service, local string) (string, error) {
+	listCall := service.Files.List()
+	listCall.PageSize(1000)
+	listCall.Fields("*")
+	list, err := listCall.Do()
+	if err != nil {
+		return "", err
+	}
+	parts := afs.SplitPathPlatform(local)
+	name := parts[len(parts)-1]
+	for _, file := range list.Files {
+		if file.Name == name {
+			return file.Id, nil
+		}
+	}
+	return "", fmt.Errorf("Didn't find %s in you Drive", local)
 }
