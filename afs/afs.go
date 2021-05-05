@@ -49,6 +49,14 @@ func (node *Node) Name() string {
 	return node.name
 }
 
+func (node *Node) Parent() *Node {
+	return node.parentNode
+}
+
+func (node *Node) DriveID() string {
+	return node.driveID
+}
+
 func (node *Node) String() string {
 	var b strings.Builder
 	fmt.Fprint(&b, node.name)
@@ -274,11 +282,6 @@ func (tree *Tree) RenamePath(oldPath, newPath string) bool {
 // RootPath returns path of root of tree
 func (tree *Tree) RootPath() string {
 	return filepath.Join(tree.name, tree.root.name)
-}
-
-// Name returns the name field of tree
-func (tree *Tree) RootName() string {
-	return JoinPathPlatform([]string{tree.name, tree.root.name}, true)
 }
 
 // IsDir returns whether the given path is a directory
