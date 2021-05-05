@@ -290,3 +290,26 @@ func (tree *Tree) AttachID(path, id string) bool {
 	node.driveID = id
 	return true
 }
+
+// Equals compares two AFS trees, and checks for structural equality
+func (tree *Tree) Equals(other *Tree) bool {
+	return tree.name == other.name && tree.root.Equals(other.root)
+}
+
+// Equals checks for if the node has same name and the child nodes are the same
+func (node *Node) Equals(other *Node) bool {
+	if node.name != other.name {
+		return false
+	}
+	for name := range node.children {
+		thisChild := node.children[name]
+		if otherChild, ok := other.children[name]; !ok {
+			return false
+		} else {
+			if childEqual := thisChild.Equals(otherChild); !childEqual {
+				return false
+			}
+		}
+	}
+	return true
+}
