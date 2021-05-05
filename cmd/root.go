@@ -1,13 +1,16 @@
 package cmd
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path"
 
 	"github.com/RedDocMD/piledriver/afs"
+	"github.com/RedDocMD/piledriver/backup"
 	"github.com/RedDocMD/piledriver/config"
 	"github.com/RedDocMD/piledriver/utils"
+	"github.com/denisbrodbeck/machineid"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -31,6 +34,17 @@ var rootCmd = &cobra.Command{
 			log.Fatalf("Failed to retrieve file list from Drive: %s\n", err)
 		}
 
+		rootFolder := fmt.Sprintf("piledriver-%s", config.MachineIdentifier)
+		rootFolderID, err := utils.QueryFileID(state.Service(), rootFolder)
+		if err == fmt.Errorf("Didn't find %s in you Drive", rootFolder) {
+			rootFolderID, err = utils.CreateFolder(state.Service(), rootFolder)
+			if err != nil {
+				log.Fatalf("Failed to create rootFolder %s: %s\n", rootFolder, err)
+			}
+		} else {
+			log.Fatalf("Failed to query rootFolder %s: %s\n", rootFolder, err)
+		}
+
 		state.InitWatcher()
 		driveTrees := make(map[string]*afs.Tree)
 		for _, dir := range config.Directories {
@@ -38,10 +52,26 @@ var rootCmd = &cobra.Command{
 			tree, err := afs.NewTreeFromDrive(driveFiles, dir.Remote)
 			if err != nil {
 				log.Println(err)
+				driveTrees[dir.Local] = nil
 			} else {
 				driveTrees[dir.Local] = tree
 			}
 		}
+
+		// First make sure that the local and drive trees have the same structure
+		for dir := range driveTrees {
+			driveTree := driveTrees[dir]
+			localTree, _ := state.Tree(dir)
+			if !driveTree.Equals(localTree) {
+				err = backup.BackupToDrive(localTree, driveTree, state.Service(), rootFolderID)
+				if err != nil {
+					log.Fatalf("Failed to perform force backup: %s", err)
+				}
+			}
+		}
+		// Update the drive trees to reflect the changes
+		// Attach the drive ID's to the local tree
+		// Check if the local version of files is more recent than the drive version
 
 		const noOfWorkers int = 12
 		for i := 0; i < noOfWorkers; i++ {
@@ -80,4 +110,7 @@ func initConfig() {
 	}
 
 	viper.SetDefault("tokenPath", path.Join(homedir, ".piledriver.token"))
+	const randomString string = "XcK2YkF8rkyCQRlX9qn9"
+	machineID := machineid.ProtectedID(randomString)
+	viper.SetDefault("machineIdentifier", machineID)
 }

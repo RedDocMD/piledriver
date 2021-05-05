@@ -236,8 +236,8 @@ func CreateFile(service *drive.Service, local string, parentID string) (string, 
 
 // CreateFolder creates a folder in drive, with a parent directory specified by parentID
 // If no parent directories are specified, then it is not set
-func CreateFolder(service *drive.Service, local string, parentID ...string) (string, error) {
-	parts := afs.SplitPathPlatform(local)
+func CreateFolder(service *drive.Service, remote string, parentID ...string) (string, error) {
+	parts := afs.SplitPathPlatform(remote)
 	dir := &drive.File{
 		Name:     parts[len(parts)-1],
 		MimeType: "application/vnd.google-apps.folder",
