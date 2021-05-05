@@ -45,7 +45,7 @@ func BackupToDrive(localTree, driveTree *afs.Tree, service *drive.Service, rootI
 			for driveName := range driveChildren {
 				driveChild := driveChildren[driveName]
 				if !nodeIsPresent(driveChildrenCovered, driveChild) {
-					// TODO: Delete all nodes in this hierarchy
+					utils.DeleteFileOrFolder(service, driveChild.DriveID())
 				}
 			}
 			return nil

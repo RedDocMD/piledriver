@@ -247,6 +247,11 @@ func CreateFolder(service *drive.Service, local string, parentID ...string) (str
 	return file.Id, err
 }
 
+// DeleteFileOrFolder deletes the file (or folder) in the drive with the givwn ID
+func DeleteFileOrFolder(service *drive.Service, id string) error {
+	return service.Files.Delete(id).Do()
+}
+
 func QueryFileID(service *drive.Service, local string) (string, error) {
 	parts := afs.SplitPathPlatform(local)
 	name := parts[len(parts)-1]
