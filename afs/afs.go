@@ -312,7 +312,7 @@ func (tree *Tree) AttachID(path, id string) bool {
 
 // Equals compares two AFS trees, and checks for structural equality
 func (tree *Tree) Equals(other *Tree) bool {
-	return tree.name == other.name && tree.root.Equals(other.root)
+	return tree.root.Equals(other.root)
 }
 
 // Equals checks for if the node has same name and the child nodes are the same

@@ -33,15 +33,17 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			log.Fatalf("Failed to retrieve file list from Drive: %s\n", err)
 		}
+		log.Println("Retrieved file info from Drive")
 
 		rootFolder := fmt.Sprintf("piledriver-%s", config.MachineIdentifier)
 		rootFolderID, err := utils.QueryFileID(state.Service(), rootFolder)
-		if err == fmt.Errorf("Didn't find %s in you Drive", rootFolder) {
+		if err != nil && err.Error() == fmt.Sprintf("Didn't find %s in you Drive", rootFolder) {
 			rootFolderID, err = utils.CreateFolder(state.Service(), rootFolder)
 			if err != nil {
 				log.Fatalf("Failed to create rootFolder %s: %s\n", rootFolder, err)
 			}
-		} else {
+			log.Printf("Created %s as rootFolder\n", rootFolder)
+		} else if err != nil {
 			log.Fatalf("Failed to query rootFolder %s: %s\n", rootFolder, err)
 		}
 
@@ -62,11 +64,13 @@ var rootCmd = &cobra.Command{
 		for dir := range driveTrees {
 			driveTree := driveTrees[dir]
 			localTree, _ := state.Tree(dir)
-			if !driveTree.Equals(localTree) {
+			if driveTree == nil || !localTree.Equals(driveTree) {
 				err = backup.BackupToDrive(localTree, driveTree, state.Service(), rootFolderID)
+				log.Printf("Backeing up tree in %s ...\n", localTree.RootPath())
 				if err != nil {
 					log.Fatalf("Failed to perform force backup: %s", err)
 				}
+				log.Printf("Backed up tree in %s\n", localTree.RootPath())
 			}
 		}
 		// Update the drive trees to reflect the changes
@@ -111,6 +115,9 @@ func initConfig() {
 
 	viper.SetDefault("tokenPath", path.Join(homedir, ".piledriver.token"))
 	const randomString string = "XcK2YkF8rkyCQRlX9qn9"
-	machineID := machineid.ProtectedID(randomString)
+	machineID, err := machineid.ProtectedID(randomString)
+	if err != nil {
+		log.Println("Failed to retrieve machine ID")
+	}
 	viper.SetDefault("machineIdentifier", machineID)
 }
