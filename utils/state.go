@@ -54,7 +54,7 @@ func (state *State) Service() *drive.Service {
 	return state.service
 }
 
-func (state *State) scanDir(dir string, recursive bool) {
+func (state *State) scanDir(dir string) {
 	// Assume that dir has already been added to state.trees
 	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -66,15 +66,12 @@ func (state *State) scanDir(dir string, recursive bool) {
 				state.trees[name].AddPath(path, info.IsDir())
 			}
 		}
-		if path != dir && info.IsDir() && !recursive {
-			return filepath.SkipDir
-		}
 		return nil
 	})
 }
 
 // AddDir adds a directory to the watcher and scans paths
-func (state *State) AddDir(dir string, recursive bool) {
+func (state *State) AddDir(dir string) {
 	added := false
 	for name := range state.trees {
 		if strings.HasPrefix(dir, name) {
@@ -83,15 +80,11 @@ func (state *State) AddDir(dir string, recursive bool) {
 		}
 	}
 	if !added {
-		tree := afs.NewTree(dir, recursive)
+		tree := afs.NewTree(dir)
 		state.trees[tree.Name()] = tree
 	}
-	state.scanDir(dir, recursive)
-	if !recursive {
-		state.watcher.Add(dir)
-	} else {
-		addDirRecursive(dir, state.watcher)
-	}
+	state.scanDir(dir)
+	addDirRecursive(dir, state.watcher)
 }
 
 // isDir checks a path if it is a directory
@@ -99,19 +92,6 @@ func (state *State) isDir(path string) (bool, error) {
 	for name := range state.trees {
 		if strings.HasPrefix(path, name) {
 			stat, err := state.trees[name].IsDir(path)
-			if err != nil {
-				return false, err
-			}
-			return stat, nil
-		}
-	}
-	return false, errors.New("Path not found in any tree: " + path)
-}
-
-func (state *State) isDirRecursive(path string) (bool, error) {
-	for name := range state.trees {
-		if strings.HasPrefix(path, name) {
-			stat, err := state.trees[name].IsRecursive(path)
 			if err != nil {
 				return false, err
 			}
@@ -147,14 +127,9 @@ func (state *State) renamePath(oldPath, newPath string) bool {
 	for name, tree := range state.trees {
 		if strings.HasPrefix(oldPath, name) {
 			isDir, _ := tree.IsDir(oldPath)
-			isRecursive, _ := tree.IsRecursive(oldPath)
 			done := tree.RenamePath(oldPath, newPath)
 			if isDir {
-				if isRecursive {
-					addDirRecursive(newPath, state.watcher)
-				} else {
-					state.watcher.Add(newPath)
-				}
+				state.watcher.Add(newPath)
 			}
 			return done
 		}

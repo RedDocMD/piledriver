@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/RedDocMD/piledriver/afs"
 	"github.com/fsnotify/fsnotify"
 )
 
@@ -61,13 +60,7 @@ func WatchLoop(state *State) {
 					renamePending = false
 				} else {
 					if isDir {
-						parts := afs.SplitPathPlatform(path)
-						parentDir := afs.JoinPathPlatform(parts[:len(parts)-1], true)
-						isRec, err := state.isDirRecursive(parentDir)
-						if err != nil {
-							log.Println(err)
-						}
-						state.AddDir(path, isRec)
+						state.AddDir(path)
 						category = DirectoryCreated
 					} else {
 						state.addFile(path)

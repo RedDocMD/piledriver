@@ -24,11 +24,9 @@ func extendNode(node *Node, currPath string) {
 			newPath := filepath.Join(currPath, name)
 			if stat, err := os.Stat(newPath); !os.IsNotExist(err) {
 				newIsDir := stat.IsDir()
-				newNode := newNode(name, newIsDir, node.isRecursive, node)
+				newNode := newNode(name, newIsDir, node)
 				node.children[name] = newNode
-				if node.isRecursive {
-					extendNode(newNode, newPath)
-				}
+				extendNode(newNode, newPath)
 			}
 		}
 	}
@@ -39,7 +37,7 @@ func constructTree() *Tree {
 	if err != nil {
 		log.Fatal(err)
 	}
-	tree := NewTree(path, true)
+	tree := NewTree(path)
 	extendNode(tree.root, "test_data/rec_dir")
 
 	return tree
@@ -82,7 +80,7 @@ func TestAddPath(t *testing.T) {
 	tempDir := os.TempDir()
 	basePath := filepath.Join(tempDir, "test")
 
-	tree := NewTree(basePath, true)
+	tree := NewTree(basePath)
 
 	newPath := filepath.Join(basePath, filepath.FromSlash("dir1/dir2"))
 	tree.AddPath(newPath, true)
