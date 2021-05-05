@@ -10,6 +10,7 @@ type DirectoryConfig struct {
 
 // Config holds all the config
 type Config struct {
-	Directories []DirectoryConfig
-	TokenPath   string
+	Directories       []DirectoryConfig
+	TokenPath         string
+	MachineIdentifier string
 }

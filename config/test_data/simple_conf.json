@@ -11,5 +11,6 @@
             "recursive": false
         }
     ],
-    "tokenPath": "/home/deep/.piledriver.token"
+    "tokenPath": "/home/deep/.piledriver.token",
+    "machineIdentifier": "SillyMachine"
 }
