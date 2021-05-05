@@ -86,7 +86,7 @@ func (state *State) AddDir(dir string) {
 	}
 	if !added {
 		tree := afs.NewTree(dir)
-		state.trees[tree.Name()] = tree
+		state.trees[tree.RootName()] = tree
 	}
 	state.scanDir(dir)
 	addDirRecursive(dir, state.watcher)

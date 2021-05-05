@@ -38,8 +38,9 @@ var rootCmd = &cobra.Command{
 			tree, err := afs.NewTreeFromDrive(driveFiles, dir.Remote)
 			if err != nil {
 				log.Println(err)
+			} else {
+				driveTrees[dir.Local] = tree
 			}
-			driveTrees[dir.Local] = tree
 		}
 
 		const noOfWorkers int = 12

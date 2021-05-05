@@ -41,6 +41,14 @@ func newNode(name string, isDir bool, parentPtr *Node) *Node {
 	}
 }
 
+func (node *Node) IsDir() bool {
+	return node.isDir
+}
+
+func (node *Node) Name() string {
+	return node.name
+}
+
 func (node *Node) String() string {
 	var b strings.Builder
 	fmt.Fprint(&b, node.name)
@@ -51,6 +59,10 @@ func (node *Node) String() string {
 		fmt.Fprint(&b, " d")
 	}
 	return b.String()
+}
+
+func (node *Node) Children() map[string]*Node {
+	return node.children
 }
 
 // NewTree creates a new tree from a given directory
@@ -110,6 +122,10 @@ func NewTreeFromDrive(files []*drive.File, rootPath string) (*Tree, error) {
 		root: rootNode,
 	}
 	return tree, nil
+}
+
+func (tree *Tree) Root() *Node {
+	return tree.root
 }
 
 func (tree *Tree) String() string {
@@ -261,7 +277,7 @@ func (tree *Tree) RootPath() string {
 }
 
 // Name returns the name field of tree
-func (tree *Tree) Name() string {
+func (tree *Tree) RootName() string {
 	return JoinPathPlatform([]string{tree.name, tree.root.name}, true)
 }
 
