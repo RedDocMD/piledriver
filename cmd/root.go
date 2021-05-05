@@ -5,6 +5,7 @@ import (
 	"os"
 	"path"
 
+	"github.com/RedDocMD/piledriver/afs"
 	"github.com/RedDocMD/piledriver/config"
 	"github.com/RedDocMD/piledriver/utils"
 	"github.com/spf13/cobra"
@@ -24,9 +25,21 @@ var rootCmd = &cobra.Command{
 
 		state := utils.NewState()
 		state.InitService(config.TokenPath)
+
+		driveFiles, err := utils.QueryAllContents(state.Service())
+		if err != nil {
+			log.Fatalf("Failed to retrieve file list from Drive: %s\n", err)
+		}
+
 		state.InitWatcher()
+		driveTrees := make(map[string]*afs.Tree)
 		for _, dir := range config.Directories {
 			state.AddDir(dir.Local)
+			tree, err := afs.NewTreeFromDrive(driveFiles, dir.Remote)
+			if err != nil {
+				log.Println(err)
+			}
+			driveTrees[dir.Local] = tree
 		}
 
 		const noOfWorkers int = 12

@@ -262,7 +262,7 @@ func (tree *Tree) RootPath() string {
 
 // Name returns the name field of tree
 func (tree *Tree) Name() string {
-	return tree.name
+	return JoinPathPlatform([]string{tree.name, tree.root.name}, true)
 }
 
 // IsDir returns whether the given path is a directory
