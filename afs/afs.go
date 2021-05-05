@@ -13,18 +13,16 @@ import (
 // but is created to store information about paths and their corresponding
 // Google Drive ID.
 // An internal node in the AFS is a directory which is to be watched recursively.
-// A leaf node is either a file or a directory that will not be watched (As
-// a consequence, its parent must be a directory that must be non-recursively watched)
+// A leaf node is a file
 
 // Node is a single node in the AFS, corresponding to a unique path in the OS,
 // and consequently in Google Drive
 type Node struct {
-	name        string // Just of this directory/node
-	isDir       bool
-	isRecursive bool   // Relevant only for directories
-	driveID     string // ID corresponding to file in Google Drive
-	children    map[string]*Node
-	parentNode  *Node
+	name       string // Just of this directory/node
+	isDir      bool
+	driveID    string // ID corresponding to file in Google Drive
+	children   map[string]*Node
+	parentNode *Node
 }
 
 // Tree represents the entire tree starting from a directory
@@ -33,14 +31,13 @@ type Tree struct {
 	root *Node
 }
 
-func newNode(name string, isDir, isRecursive bool, parentPtr *Node) *Node {
+func newNode(name string, isDir bool, parentPtr *Node) *Node {
 	return &Node{
-		name:        name,
-		isDir:       isDir,
-		isRecursive: isRecursive,
-		children:    make(map[string]*Node),
-		parentNode:  parentPtr,
-		driveID:     "",
+		name:       name,
+		isDir:      isDir,
+		children:   make(map[string]*Node),
+		parentNode: parentPtr,
+		driveID:    "",
 	}
 }
 
@@ -51,22 +48,18 @@ func (node *Node) String() string {
 		fmt.Fprintf(&b, " (%s0)", node.driveID)
 	}
 	if node.isDir {
-		if node.isRecursive {
-			fmt.Fprint(&b, " dr")
-		} else {
-			fmt.Fprint(&b, " d")
-		}
+		fmt.Fprint(&b, " d")
 	}
 	return b.String()
 }
 
 // NewTree creates a new tree from a given directory
-func NewTree(dir string, isRecursive bool) *Tree {
+func NewTree(dir string) *Tree {
 	parts := SplitPathPlatform(dir)
 	parent := JoinPathPlatform(parts[:len(parts)-1], true)
 	dirName := parts[len(parts)-1]
 
-	rootNode := newNode(dirName, true, isRecursive, nil)
+	rootNode := newNode(dirName, true, nil)
 
 	return &Tree{
 		name: parent,
@@ -92,7 +85,7 @@ func NewTreeFromDrive(files []*drive.File, rootPath string) (*Tree, error) {
 		return nil, fmt.Errorf("can't find id for %s", rootPath)
 	}
 
-	rootNode := newNode(rootName, true, true, nil)
+	rootNode := newNode(rootName, true, nil)
 	rootNode.driveID = rootId
 
 	// Do BFS
@@ -104,7 +97,7 @@ func NewTreeFromDrive(files []*drive.File, rootPath string) (*Tree, error) {
 		if ok {
 			for _, child := range children {
 				isDir := child.MimeType == "application/vnd.google-apps.folder"
-				childNode := newNode(child.Name, isDir, true, node)
+				childNode := newNode(child.Name, isDir, node)
 				childNode.driveID = child.Id
 				node.children[child.Name] = childNode
 				queue = append(queue, childNode)
@@ -169,7 +162,7 @@ func (tree *Tree) AddPath(path string, isDir bool) bool {
 		} else {
 			thisPartIsDir = true
 		}
-		childNode := newNode(parts[0], thisPartIsDir, node.isRecursive, node)
+		childNode := newNode(parts[0], thisPartIsDir, node)
 		node.children[parts[0]] = childNode
 		addPath(childNode, parts[1:])
 	}
@@ -280,17 +273,6 @@ func (tree *Tree) IsDir(path string) (bool, error) {
 		return false, errors.New("Path not found: " + path)
 	}
 	return node.isDir, nil
-}
-
-// IsRecursive returns whether path is marked as recursive
-// Makes sense only for directories
-// Returns an error if path is not in tree
-func (tree *Tree) IsRecursive(path string) (bool, error) {
-	node, ok := tree.findPath(path)
-	if !ok {
-		return false, errors.New("Path not found: " + path)
-	}
-	return node.isRecursive, nil
 }
 
 // ContainsPath returns if the tree contains the given path

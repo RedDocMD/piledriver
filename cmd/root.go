@@ -26,7 +26,7 @@ var rootCmd = &cobra.Command{
 		state.InitService(config.TokenPath)
 		state.InitWatcher()
 		for _, dir := range config.Directories {
-			state.AddDir(dir.Local, dir.Recursive)
+			state.AddDir(dir.Local)
 		}
 
 		const noOfWorkers int = 12
