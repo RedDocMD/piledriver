@@ -29,6 +29,9 @@ var rootCmd = &cobra.Command{
 		state := utils.NewState()
 		state.InitService(config.TokenPath)
 
+		// Run the watch loop to accumulate changes in the init period
+		go utils.WatchLoop(state)
+
 		rootFolder := fmt.Sprintf("piledriver-%s", config.MachineIdentifier)
 		rootFolderID, err := utils.QueryFileID(state.Service(), rootFolder)
 		if err != nil && err.Error() == fmt.Sprintf("Didn't find %s in you Drive", rootFolder) {
@@ -131,8 +134,10 @@ var rootCmd = &cobra.Command{
 		for i := 0; i < noOfWorkers; i++ {
 			go utils.ExecuteEvents(state.FileEvents)
 		}
-		// TODO: Move this above to a separate thread
-		utils.WatchLoop(state)
+
+		// Now just keep on running
+		for {
+		}
 	},
 }
 
