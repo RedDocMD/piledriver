@@ -1,8 +1,11 @@
 package afs
 
 import (
+	"crypto/md5"
 	"errors"
 	"fmt"
+	"io"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -21,6 +24,7 @@ type Node struct {
 	name       string // Just of this directory/node
 	isDir      bool
 	driveID    string // ID corresponding to file in Google Drive
+	md5sum     string // md5sum if it is a file, empty otherwise
 	children   map[string]*Node
 	parentNode *Node
 }
@@ -38,6 +42,7 @@ func newNode(name string, isDir bool, parentPtr *Node) *Node {
 		children:   make(map[string]*Node),
 		parentNode: parentPtr,
 		driveID:    "",
+		md5sum:     "",
 	}
 }
 
@@ -66,6 +71,16 @@ func (node *Node) SetDriveID(id string) {
 	node.driveID = id
 }
 
+// Checksum returns the MD5 of the node
+func (node *Node) Checksum() string {
+	return node.md5sum
+}
+
+// SetChecksum sets the checksum for the node
+func (node *Node) SetChecksum(checksum string) {
+	node.md5sum = checksum
+}
+
 func (node *Node) String() string {
 	var b strings.Builder
 	fmt.Fprint(&b, node.name)
@@ -74,6 +89,10 @@ func (node *Node) String() string {
 	}
 	if node.isDir {
 		fmt.Fprint(&b, " d")
+	} else {
+		if node.md5sum != "" {
+			fmt.Fprintf(&b, " => %s", node.md5sum)
+		}
 	}
 	return b.String()
 }
@@ -128,6 +147,9 @@ func NewTreeFromDrive(files []*drive.File, rootPath string) (*Tree, error) {
 				isDir := child.MimeType == "application/vnd.google-apps.folder"
 				childNode := newNode(child.Name, isDir, node)
 				childNode.driveID = child.Id
+				if !isDir {
+					childNode.md5sum = child.AppProperties["md5sum"]
+				}
 				node.children[child.Name] = childNode
 				queue = append(queue, childNode)
 			}
@@ -349,4 +371,37 @@ func (node *Node) EqualsIgnore(other *Node, ignoreName, ignorePropagate bool) bo
 		}
 	}
 	return len(node.children) == len(other.children)
+}
+
+// CalculateChecksums works on the local AFS only
+// Computes the MD5 sum for each file (leaf node) and puts it in
+func (tree *Tree) CalculateChecksums() error {
+	pathParts := SplitPathPlatform(tree.name)
+	var calculate func(node *Node) error
+	calculate = func(node *Node) error {
+		pathParts = append(pathParts, node.name)
+		if node.isDir {
+			for childName := range node.children {
+				child := node.children[childName]
+				if err := calculate(child); err != nil {
+					return err
+				}
+			}
+		} else {
+			path := JoinPathPlatform(pathParts, true)
+			file, err := os.Open(path)
+			if err != nil {
+				return err
+			}
+			defer file.Close()
+			sum := md5.New()
+			io.Copy(sum, file)
+			checksum := fmt.Sprintf("%x", sum.Sum(nil))
+			node.md5sum = checksum
+		}
+		pathParts = pathParts[0 : len(pathParts)-1]
+		return nil
+	}
+	calculate(tree.root)
+	return nil
 }

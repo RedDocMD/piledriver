@@ -110,12 +110,28 @@ var rootCmd = &cobra.Command{
 			backup.AttachIDS(localTree, driveTree)
 			log.Printf("Attached ID's to tree with root path %s\n", localTree.RootPath())
 		}
+
 		// Check if the local version of files is more recent than the drive version
+		for name := range driveTreesNames {
+			localTree, _ := state.Tree(name)
+			driveTree := driveTreesNames[name].tree
+			err := localTree.CalculateChecksums()
+			if err != nil {
+				log.Fatalf("Failed to calculate local tree checksums: %s\n", err)
+			}
+			log.Printf("Calculated checksums for tree rooted at %s\n", localTree.RootPath())
+			err = backup.UpdateDriveTree(localTree, driveTree, state.Service())
+			if err != nil {
+				log.Fatalf("Failed to update changed files for tree rooted at %s: %s\n", localTree.RootPath(), err)
+			}
+			log.Printf("Updated to drive, tree rooted at %s\n", localTree.RootPath())
+		}
 
 		const noOfWorkers int = 12
 		for i := 0; i < noOfWorkers; i++ {
 			go utils.ExecuteEvents(state.FileEvents)
 		}
+		// TODO: Move this above to a separate thread
 		utils.WatchLoop(state)
 	},
 }

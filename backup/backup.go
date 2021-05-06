@@ -147,3 +147,46 @@ func AttachIDS(localTree, driveTree *afs.Tree) {
 	}
 	attach(localTree.Root(), driveTree.Root())
 }
+
+// UpdateDriveTree updates the drive tree to match the local tree,
+// updating files when they mismatch (from the checksums).
+// It assumes that the two trees have the same structure, ie, they return
+// true for drive.EqualsIgnore(local, true).
+// It also assumes that the localTree has the driveID's in place
+func UpdateDriveTree(localTree, driveTree *afs.Tree, service *drive.Service) error {
+	var update func(localNode, driveNode *afs.Node) error
+	pathParts := afs.SplitPathPlatform(localTree.RootPath())
+	pathParts = pathParts[0 : len(pathParts)-1]
+	update = func(localNode, driveNode *afs.Node) error {
+		pathParts = append(pathParts, localNode.Name())
+		if localNode.IsDir() {
+			localChildren := localNode.Children()
+			driveChildren := driveNode.Children()
+			for childName := range localChildren {
+				localChild := localChildren[childName]
+				driveChild := driveChildren[childName]
+				err := update(localChild, driveChild)
+				if err != nil {
+					return err
+				}
+			}
+		} else {
+			if localNode.Checksum() != driveNode.Checksum() {
+				file, err := utils.UpdateFile(
+					service,
+					afs.JoinPathPlatform(pathParts, true),
+					localNode.DriveID(),
+				)
+				if err != nil {
+					return err
+				}
+				newChecksum := file.AppProperties["md5sum"]
+				driveNode.SetChecksum(newChecksum)
+				localNode.SetChecksum(newChecksum)
+			}
+		}
+		pathParts = pathParts[0 : len(pathParts)-1]
+		return nil
+	}
+	return update(localTree.Root(), driveTree.Root())
+}

@@ -1,7 +1,9 @@
 package utils
 
 import (
+	"bytes"
 	"context"
+	"crypto/md5"
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
@@ -221,17 +223,55 @@ type PathID struct {
 // If queue is nil, the Do() will be executed in this method itself
 func CreateFile(service *drive.Service, local string, parentID string) (string, error) {
 	filename := path.Base(local)
-	driveFile := &drive.File{
-		Name:    filename,
-		Parents: []string{parentID},
-	}
 	localfile, err := os.Open(local)
 	if err != nil {
 		return "", err
 	}
 	defer localfile.Close()
-	driveFile, err = service.Files.Create(driveFile).Media(localfile).Do()
+
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(localfile)
+	data := buf.Bytes()
+	checksum := fmt.Sprintf("%x", md5.Sum(data))
+	appData := make(map[string]string)
+	appData["md5sum"] = checksum
+
+	driveFile := &drive.File{
+		Name:          filename,
+		Parents:       []string{parentID},
+		AppProperties: appData,
+	}
+	driveFile, err = service.Files.
+		Create(driveFile).
+		Media(buf).
+		Do()
 	return driveFile.Id, err
+}
+
+// UpdateFile updates the file to the new contents
+func UpdateFile(service *drive.Service, local, fileID string) (*drive.File, error) {
+	localfile, err := os.Open(local)
+	if err != nil {
+		return nil, err
+	}
+	defer localfile.Close()
+
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(localfile)
+	data := buf.Bytes()
+	checksum := fmt.Sprintf("%x", md5.Sum(data))
+	appData := make(map[string]string)
+	appData["md5sum"] = checksum
+
+	driveFile := &drive.File{
+		AppProperties: appData,
+	}
+	driveFile, err = service.Files.
+		Update(fileID, driveFile).
+		Fields("*").
+		Media(buf).
+		Do()
+	return driveFile, err
 }
 
 // CreateFolder creates a folder in drive, with a parent directory specified by parentID
@@ -260,7 +300,7 @@ func QueryFileID(service *drive.Service, local string) (string, error) {
 
 	for {
 		listCall := service.Files.List().
-			Fields("nextPageToken, files(name, id)")
+			Fields("nextPageToken, files(name, id, trashed)")
 		if nextPageToken != "" {
 			listCall = listCall.PageToken(nextPageToken)
 		}
@@ -269,7 +309,7 @@ func QueryFileID(service *drive.Service, local string) (string, error) {
 			return "", err
 		}
 		for _, file := range list.Files {
-			if file.Name == name {
+			if !file.Trashed && file.Name == name {
 				return file.Id, nil
 			}
 		}
@@ -286,7 +326,7 @@ func QueryAllContents(service *drive.Service) ([]*drive.File, error) {
 
 	for {
 		listCall := service.Files.List().
-			Fields("nextPageToken, files(name, id, trashed, parents, mimeType)").
+			Fields("nextPageToken, files(name, id, trashed, parents, mimeType, appProperties)").
 			PageToken(nextPageToken)
 		list, err := listCall.Do()
 		if err != nil {
