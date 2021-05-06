@@ -11,17 +11,35 @@ import (
 //   - When a new folder is added to be backuped (or for the first time Piledriver is run)
 //   - When you make changes in the local fs with Piledriver off
 //   - When you manually edit the files in Drive
-func BackupToDrive(localTree, driveTree *afs.Tree, service *drive.Service, rootID string) error {
+func BackupToDrive(
+	localTree, driveTree *afs.Tree,
+	remoteRootName string,
+	service *drive.Service,
+	rootID string) error {
+
 	rootPath := localTree.RootPath()
 	if driveTree == nil {
-		return backupNode(localTree.Root(), service, rootPath, rootID)
+		return backupNode(
+			localTree.Root(),
+			service,
+			rootPath,
+			remoteRootName,
+			rootID,
+			true,
+		)
 	}
 	pathParts := afs.SplitPathPlatform(rootPath)
 	var backupOnMismatch func(localNode, driveNode *afs.Node) error
 	backupOnMismatch = func(localNode, driveNode *afs.Node) error {
-		if localNode.Name() != driveNode.Name() {
-			err := backupNode(localNode, service, afs.JoinPathPlatform(pathParts, true), driveNode.Parent().DriveID())
-			return err
+		if localNode != localTree.Root() && localNode.Name() != driveNode.Name() {
+			return backupNode(
+				localNode,
+				service,
+				afs.JoinPathPlatform(pathParts, true),
+				remoteRootName,
+				driveNode.Parent().DriveID(),
+				false,
+			)
 		} else {
 			localChildren := localNode.Children()
 			driveChildren := driveNode.Children()
@@ -31,7 +49,14 @@ func BackupToDrive(localTree, driveTree *afs.Tree, service *drive.Service, rootI
 				pathParts = append(pathParts, localChild.Name())
 				var err error
 				if driveChild, ok := driveChildren[localName]; !ok {
-					err = backupNode(localChild, service, afs.JoinPathPlatform(pathParts, true), driveNode.DriveID())
+					err = backupNode(
+						localChild,
+						service,
+						afs.JoinPathPlatform(pathParts, true),
+						remoteRootName,
+						driveNode.DriveID(),
+						false,
+					)
 				} else {
 					driveChildrenCovered = append(driveChildrenCovered, driveChild)
 					err = backupOnMismatch(localChild, driveChild)
@@ -63,9 +88,20 @@ func nodeIsPresent(list []*afs.Node, node *afs.Node) bool {
 	return false
 }
 
-func backupNode(node *afs.Node, service *drive.Service, localPath, parentID string) error {
+func backupNode(
+	node *afs.Node,
+	service *drive.Service,
+	localPath, rootRemoteName, parentID string,
+	isRoot bool) error {
+
 	if node.IsDir() {
-		id, err := utils.CreateFolder(service, localPath, parentID)
+		var id string
+		var err error
+		if isRoot {
+			id, err = utils.CreateFolder(service, rootRemoteName, parentID)
+		} else {
+			id, err = utils.CreateFolder(service, localPath, parentID)
+		}
 		if err != nil {
 			return err
 		}
@@ -74,7 +110,15 @@ func backupNode(node *afs.Node, service *drive.Service, localPath, parentID stri
 			childNode := children[name]
 			localPathParts := afs.SplitPathPlatform(localPath)
 			newPath := afs.JoinPathPlatform(append(localPathParts, childNode.Name()), true)
-			if err := backupNode(childNode, service, newPath, id); err != nil {
+			err := backupNode(
+				childNode,
+				service,
+				newPath,
+				rootRemoteName,
+				id,
+				false,
+			)
+			if err != nil {
 				return err
 			}
 		}

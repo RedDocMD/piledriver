@@ -310,14 +310,22 @@ func (tree *Tree) AttachID(path, id string) bool {
 	return true
 }
 
-// Equals compares two AFS trees, and checks for structural equality
-func (tree *Tree) Equals(other *Tree) bool {
-	return tree.root.Equals(other.root)
+// EqualsIgnore compares two AFS trees, and checks for structural equality
+// It provides an option for ignoring the inequality of the root names
+func (tree *Tree) EqualsIgnore(other *Tree, ignoreRootName bool) bool {
+	return tree.root.EqualsIgnore(other.root, ignoreRootName, false)
 }
 
-// Equals checks for if the node has same name and the child nodes are the same
-func (node *Node) Equals(other *Node) bool {
-	if node.name != other.name {
+// Equals compares two AFS trees, and checks for structural equality
+func (tree *Tree) Equals(other *Tree) bool {
+	return tree.EqualsIgnore(other, false)
+}
+
+// EqualsIgnore checks for if the node has same name and the child nodes are the same
+// It provides an option to ignore the inequality of names at this level
+// It provides an option to specify if the ignoring is propagated down the levels
+func (node *Node) EqualsIgnore(other *Node, ignoreName, ignorePropagate bool) bool {
+	if !ignoreName && node.name != other.name {
 		return false
 	}
 	for name := range node.children {
@@ -325,7 +333,8 @@ func (node *Node) Equals(other *Node) bool {
 		if otherChild, ok := other.children[name]; !ok {
 			return false
 		} else {
-			if childEqual := thisChild.Equals(otherChild); !childEqual {
+			ignore := ignoreName && ignorePropagate
+			if childEqual := thisChild.EqualsIgnore(otherChild, ignore, ignorePropagate); !childEqual {
 				return false
 			}
 		}

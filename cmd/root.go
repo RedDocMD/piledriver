@@ -29,12 +29,6 @@ var rootCmd = &cobra.Command{
 		state := utils.NewState()
 		state.InitService(config.TokenPath)
 
-		driveFiles, err := utils.QueryAllContents(state.Service())
-		if err != nil {
-			log.Fatalf("Failed to retrieve file list from Drive: %s\n", err)
-		}
-		log.Println("Retrieved file info from Drive")
-
 		rootFolder := fmt.Sprintf("piledriver-%s", config.MachineIdentifier)
 		rootFolderID, err := utils.QueryFileID(state.Service(), rootFolder)
 		if err != nil && err.Error() == fmt.Sprintf("Didn't find %s in you Drive", rootFolder) {
@@ -47,33 +41,57 @@ var rootCmd = &cobra.Command{
 			log.Fatalf("Failed to query rootFolder %s: %s\n", rootFolder, err)
 		}
 
+		driveFiles, err := utils.QueryAllContents(state.Service())
+		if err != nil {
+			log.Fatalf("Failed to retrieve file list from Drive: %s\n", err)
+		}
+		log.Println("Retrieved file info from Drive")
+
+		type TreeName struct {
+			tree       *afs.Tree
+			remoteName string
+		}
+
 		state.InitWatcher()
-		driveTrees := make(map[string]*afs.Tree)
+		driveTreesNames := make(map[string]TreeName)
 		for _, dir := range config.Directories {
 			state.AddDir(dir.Local)
 			tree, err := afs.NewTreeFromDrive(driveFiles, dir.Remote)
 			if err != nil {
 				log.Println(err)
-				driveTrees[dir.Local] = nil
+				driveTreesNames[dir.Local] = TreeName{nil, dir.Remote}
 			} else {
-				driveTrees[dir.Local] = tree
+				driveTreesNames[dir.Local] = TreeName{tree, dir.Remote}
 			}
 		}
 
 		// First make sure that the local and drive trees have the same structure
-		for dir := range driveTrees {
-			driveTree := driveTrees[dir]
+		for dir := range driveTreesNames {
+			driveTreeName := driveTreesNames[dir]
 			localTree, _ := state.Tree(dir)
-			if driveTree == nil || !localTree.Equals(driveTree) {
-				err = backup.BackupToDrive(localTree, driveTree, state.Service(), rootFolderID)
-				log.Printf("Backeing up tree in %s ...\n", localTree.RootPath())
+			if driveTreeName.tree == nil || !localTree.EqualsIgnore(driveTreeName.tree, true) {
+				log.Printf("Backing up tree in %s ...\n", localTree.RootPath())
+				err = backup.BackupToDrive(
+					localTree,
+					driveTreeName.tree,
+					driveTreeName.remoteName,
+					state.Service(),
+					rootFolderID,
+				)
 				if err != nil {
 					log.Fatalf("Failed to perform force backup: %s", err)
 				}
 				log.Printf("Backed up tree in %s\n", localTree.RootPath())
 			}
 		}
+
 		// Update the drive trees to reflect the changes
+		driveFiles, err = utils.QueryAllContents(state.Service())
+		if err != nil {
+			log.Fatalf("Failed to retrieve file list from Drive: %s\n", err)
+		}
+		log.Println("Retrieved file info from Drive")
+
 		// Attach the drive ID's to the local tree
 		// Check if the local version of files is more recent than the drive version
 
