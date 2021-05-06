@@ -66,10 +66,12 @@ var rootCmd = &cobra.Command{
 		}
 
 		// First make sure that the local and drive trees have the same structure
+		updated := false
 		for dir := range driveTreesNames {
 			driveTreeName := driveTreesNames[dir]
 			localTree, _ := state.Tree(dir)
 			if driveTreeName.tree == nil || !localTree.EqualsIgnore(driveTreeName.tree, true) {
+				updated = true
 				log.Printf("Backing up tree in %s ...\n", localTree.RootPath())
 				err = backup.BackupToDrive(
 					localTree,
@@ -86,13 +88,28 @@ var rootCmd = &cobra.Command{
 		}
 
 		// Update the drive trees to reflect the changes
-		driveFiles, err = utils.QueryAllContents(state.Service())
-		if err != nil {
-			log.Fatalf("Failed to retrieve file list from Drive: %s\n", err)
+		if updated {
+			driveFiles, err = utils.QueryAllContents(state.Service())
+			if err != nil {
+				log.Fatalf("Failed to retrieve file list from Drive: %s\n", err)
+			}
+			log.Println("Retrieved file info from Drive")
+			for _, dir := range config.Directories {
+				tree, err := afs.NewTreeFromDrive(driveFiles, dir.Remote)
+				if err != nil {
+					log.Fatalf("Failed to find drive tree rooted at %s corresponding to local tree at %s\n", dir.Remote, dir.Local)
+				}
+				driveTreesNames[dir.Local] = TreeName{tree, dir.Remote}
+			}
 		}
-		log.Println("Retrieved file info from Drive")
 
 		// Attach the drive ID's to the local tree
+		for name := range driveTreesNames {
+			localTree, _ := state.Tree(name)
+			driveTree := driveTreesNames[name].tree
+			backup.AttachIDS(localTree, driveTree)
+			log.Printf("Attached ID's to tree with root path %s\n", localTree.RootPath())
+		}
 		// Check if the local version of files is more recent than the drive version
 
 		const noOfWorkers int = 12

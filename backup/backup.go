@@ -129,3 +129,21 @@ func backupNode(
 	}
 	return nil
 }
+
+// AttachIDS attaches all the ids from the Drive AFS to the local AFS.
+// It assumes that the two trees have the same structure, ie, they return
+// true for drive.EqualsIgnore(local, true).
+func AttachIDS(localTree, driveTree *afs.Tree) {
+	var attach func(localNode, driveNode *afs.Node)
+	attach = func(localNode, driveNode *afs.Node) {
+		localNode.SetDriveID(driveNode.DriveID())
+		localChildren := localNode.Children()
+		driveChildren := driveNode.Children()
+		for childName := range localChildren {
+			localChild := localChildren[childName]
+			driveChild := driveChildren[childName]
+			attach(localChild, driveChild)
+		}
+	}
+	attach(localTree.Root(), driveTree.Root())
+}

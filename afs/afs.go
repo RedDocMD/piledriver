@@ -41,20 +41,29 @@ func newNode(name string, isDir bool, parentPtr *Node) *Node {
 	}
 }
 
+// IsDir returns whether this node is a directory.
 func (node *Node) IsDir() bool {
 	return node.isDir
 }
 
+// Name returns the name field for node
 func (node *Node) Name() string {
 	return node.name
 }
 
+// Parent returns the parentNode field for this node.
 func (node *Node) Parent() *Node {
 	return node.parentNode
 }
 
+// DriveID returns the dirveID for this node.
 func (node *Node) DriveID() string {
 	return node.driveID
+}
+
+// SetDriveID sets the driveID for this node
+func (node *Node) SetDriveID(id string) {
+	node.driveID = id
 }
 
 func (node *Node) String() string {
@@ -339,5 +348,5 @@ func (node *Node) EqualsIgnore(other *Node, ignoreName, ignorePropagate bool) bo
 			}
 		}
 	}
-	return true
+	return len(node.children) == len(other.children)
 }
