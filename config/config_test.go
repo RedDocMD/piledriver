@@ -41,4 +41,5 @@ func TestSimpleConfig(t *testing.T) {
 	assert.False(dir2.Recursive)
 
 	assert.Equal("/home/deep/.piledriver.token", config.TokenPath)
+	assert.Equal("SillyMachine", config.MachineIdentifier)
 }

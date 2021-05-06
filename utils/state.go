@@ -54,6 +54,11 @@ func (state *State) Service() *drive.Service {
 	return state.service
 }
 
+func (state *State) Tree(name string) (*afs.Tree, bool) {
+	tree, ok := state.trees[name]
+	return tree, ok
+}
+
 func (state *State) scanDir(dir string) {
 	// Assume that dir has already been added to state.trees
 	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
@@ -81,7 +86,7 @@ func (state *State) AddDir(dir string) {
 	}
 	if !added {
 		tree := afs.NewTree(dir)
-		state.trees[tree.Name()] = tree
+		state.trees[tree.RootPath()] = tree
 	}
 	state.scanDir(dir)
 	addDirRecursive(dir, state.watcher)

@@ -1,8 +1,11 @@
 package afs
 
 import (
+	"crypto/md5"
 	"errors"
 	"fmt"
+	"io"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -21,6 +24,7 @@ type Node struct {
 	name       string // Just of this directory/node
 	isDir      bool
 	driveID    string // ID corresponding to file in Google Drive
+	md5sum     string // md5sum if it is a file, empty otherwise
 	children   map[string]*Node
 	parentNode *Node
 }
@@ -38,7 +42,43 @@ func newNode(name string, isDir bool, parentPtr *Node) *Node {
 		children:   make(map[string]*Node),
 		parentNode: parentPtr,
 		driveID:    "",
+		md5sum:     "",
 	}
+}
+
+// IsDir returns whether this node is a directory.
+func (node *Node) IsDir() bool {
+	return node.isDir
+}
+
+// Name returns the name field for node
+func (node *Node) Name() string {
+	return node.name
+}
+
+// Parent returns the parentNode field for this node.
+func (node *Node) Parent() *Node {
+	return node.parentNode
+}
+
+// DriveID returns the dirveID for this node.
+func (node *Node) DriveID() string {
+	return node.driveID
+}
+
+// SetDriveID sets the driveID for this node
+func (node *Node) SetDriveID(id string) {
+	node.driveID = id
+}
+
+// Checksum returns the MD5 of the node
+func (node *Node) Checksum() string {
+	return node.md5sum
+}
+
+// SetChecksum sets the checksum for the node
+func (node *Node) SetChecksum(checksum string) {
+	node.md5sum = checksum
 }
 
 func (node *Node) String() string {
@@ -49,8 +89,16 @@ func (node *Node) String() string {
 	}
 	if node.isDir {
 		fmt.Fprint(&b, " d")
+	} else {
+		if node.md5sum != "" {
+			fmt.Fprintf(&b, " => %s", node.md5sum)
+		}
 	}
 	return b.String()
+}
+
+func (node *Node) Children() map[string]*Node {
+	return node.children
 }
 
 // NewTree creates a new tree from a given directory
@@ -99,6 +147,9 @@ func NewTreeFromDrive(files []*drive.File, rootPath string) (*Tree, error) {
 				isDir := child.MimeType == "application/vnd.google-apps.folder"
 				childNode := newNode(child.Name, isDir, node)
 				childNode.driveID = child.Id
+				if !isDir {
+					childNode.md5sum = child.AppProperties["md5sum"]
+				}
 				node.children[child.Name] = childNode
 				queue = append(queue, childNode)
 			}
@@ -110,6 +161,10 @@ func NewTreeFromDrive(files []*drive.File, rootPath string) (*Tree, error) {
 		root: rootNode,
 	}
 	return tree, nil
+}
+
+func (tree *Tree) Root() *Node {
+	return tree.root
 }
 
 func (tree *Tree) String() string {
@@ -260,11 +315,6 @@ func (tree *Tree) RootPath() string {
 	return filepath.Join(tree.name, tree.root.name)
 }
 
-// Name returns the name field of tree
-func (tree *Tree) Name() string {
-	return tree.name
-}
-
 // IsDir returns whether the given path is a directory
 // Returns error if path is not found in the tree
 func (tree *Tree) IsDir(path string) (bool, error) {
@@ -289,4 +339,69 @@ func (tree *Tree) AttachID(path, id string) bool {
 	}
 	node.driveID = id
 	return true
+}
+
+// EqualsIgnore compares two AFS trees, and checks for structural equality
+// It provides an option for ignoring the inequality of the root names
+func (tree *Tree) EqualsIgnore(other *Tree, ignoreRootName bool) bool {
+	return tree.root.EqualsIgnore(other.root, ignoreRootName, false)
+}
+
+// Equals compares two AFS trees, and checks for structural equality
+func (tree *Tree) Equals(other *Tree) bool {
+	return tree.EqualsIgnore(other, false)
+}
+
+// EqualsIgnore checks for if the node has same name and the child nodes are the same
+// It provides an option to ignore the inequality of names at this level
+// It provides an option to specify if the ignoring is propagated down the levels
+func (node *Node) EqualsIgnore(other *Node, ignoreName, ignorePropagate bool) bool {
+	if !ignoreName && node.name != other.name {
+		return false
+	}
+	for name := range node.children {
+		thisChild := node.children[name]
+		if otherChild, ok := other.children[name]; !ok {
+			return false
+		} else {
+			ignore := ignoreName && ignorePropagate
+			if childEqual := thisChild.EqualsIgnore(otherChild, ignore, ignorePropagate); !childEqual {
+				return false
+			}
+		}
+	}
+	return len(node.children) == len(other.children)
+}
+
+// CalculateChecksums works on the local AFS only
+// Computes the MD5 sum for each file (leaf node) and puts it in
+func (tree *Tree) CalculateChecksums() error {
+	pathParts := SplitPathPlatform(tree.name)
+	var calculate func(node *Node) error
+	calculate = func(node *Node) error {
+		pathParts = append(pathParts, node.name)
+		if node.isDir {
+			for childName := range node.children {
+				child := node.children[childName]
+				if err := calculate(child); err != nil {
+					return err
+				}
+			}
+		} else {
+			path := JoinPathPlatform(pathParts, true)
+			file, err := os.Open(path)
+			if err != nil {
+				return err
+			}
+			defer file.Close()
+			sum := md5.New()
+			io.Copy(sum, file)
+			checksum := fmt.Sprintf("%x", sum.Sum(nil))
+			node.md5sum = checksum
+		}
+		pathParts = pathParts[0 : len(pathParts)-1]
+		return nil
+	}
+	calculate(tree.root)
+	return nil
 }
