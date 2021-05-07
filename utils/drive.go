@@ -140,8 +140,8 @@ func AuthorizeApp(tokenLocation string) {
 
 	var wg sync.WaitGroup
 	authChan := make(chan map[string]string)
+	wg.Add(1)
 	go func() {
-		wg.Add(1)
 		handleOAuthRedirect(redirectPort, &wg, &authChan)
 	}()
 	wg.Wait()
@@ -226,6 +226,7 @@ func saveToken(path string, token *oauth2.Token) {
 	json.NewEncoder(f).Encode(token)
 }
 
+// PathID contains the path and the id returned for it
 type PathID struct {
 	path string
 	id   string
@@ -314,6 +315,8 @@ func DeleteFileOrFolder(service *drive.Service, id string) error {
 	return service.Files.Delete(id).Do()
 }
 
+// QueryFileID queries Google drive for the id of a file (or folder) with the givwn path
+// If the file is found, then err is nil
 func QueryFileID(service *drive.Service, local string) (string, error) {
 	parts := afs.SplitPathPlatform(local)
 	name := parts[len(parts)-1]
@@ -339,9 +342,11 @@ func QueryFileID(service *drive.Service, local string) (string, error) {
 			break
 		}
 	}
-	return "", fmt.Errorf("Didn't find %s in you Drive", local)
+	return "", fmt.Errorf("didn't find %s in you Drive", local)
 }
 
+// QueryAllContents returns a list of all the files uploaded to Drive by
+// Piledriver that were not trashed by the user
 func QueryAllContents(service *drive.Service) ([]*drive.File, error) {
 	nextPageToken := ""
 	var nonTrashFiles []*drive.File

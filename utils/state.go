@@ -54,6 +54,8 @@ func (state *State) Service() *drive.Service {
 	return state.service
 }
 
+// Returns the tree with the given name
+// If a tree with this name is found, then the boolean is true else false
 func (state *State) Tree(name string) (*afs.Tree, bool) {
 	tree, ok := state.trees[name]
 	return tree, ok

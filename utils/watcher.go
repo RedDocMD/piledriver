@@ -109,10 +109,13 @@ func addDirRecursive(dir string, watcher *fsnotify.Watcher) error {
 	return filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			log.Print("Failed to add - ", err)
-			return nil
+			return err
 		}
 		if info.IsDir() {
-			watcher.Add(path)
+			err := watcher.Add(path)
+			if err != nil {
+				return err
+			}
 		}
 		return nil
 	})

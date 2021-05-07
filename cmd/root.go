@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"sync"
 
 	"github.com/RedDocMD/piledriver/afs"
 	"github.com/RedDocMD/piledriver/backup"
@@ -136,8 +137,9 @@ var rootCmd = &cobra.Command{
 		}
 
 		// Now just keep on running
-		for {
-		}
+		var wg sync.WaitGroup
+		wg.Add(1)
+		wg.Wait()
 	},
 }
 
