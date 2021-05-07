@@ -12,7 +12,6 @@ import (
 func extendNode(node *Node, currPath string) {
 	if node.isDir {
 		dir, err := os.Open(currPath)
-		defer dir.Close()
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -28,6 +27,10 @@ func extendNode(node *Node, currPath string) {
 				node.children[name] = newNode
 				extendNode(newNode, newPath)
 			}
+		}
+		err = dir.Close()
+		if err != nil {
+			log.Fatalln(err)
 		}
 	}
 }

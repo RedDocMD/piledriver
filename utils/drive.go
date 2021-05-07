@@ -140,8 +140,8 @@ func AuthorizeApp(tokenLocation string) {
 
 	var wg sync.WaitGroup
 	authChan := make(chan map[string]string)
+	wg.Add(1)
 	go func() {
-		wg.Add(1)
 		handleOAuthRedirect(redirectPort, &wg, &authChan)
 	}()
 	wg.Wait()
@@ -177,12 +177,21 @@ func handleOAuthRedirect(port int, wg *sync.WaitGroup, ans *chan map[string]stri
 
 		if code, ok := queries["code"]; ok {
 			resp["code"] = code[0]
-			w.Write(successBytes)
+			_, err := w.Write(successBytes)
+			if err != nil {
+				log.Fatalf("Failed to write to localhost:%d: %s\n", port, err)
+			}
 		} else if err, ok := queries["error"]; ok {
 			resp["error"] = err[0]
-			w.Write(failureBytes)
+			_, err := w.Write(failureBytes)
+			if err != nil {
+				log.Fatalf("Failed to write to localhost:%d: %s\n", port, err)
+			}
 		} else {
-			w.Write([]byte("Unknown problem occured"))
+			_, err := w.Write([]byte("Unknown problem occured"))
+			if err != nil {
+				log.Fatalf("Failed to write to localhost:%d: %s\n", port, err)
+			}
 		}
 
 		*ans <- resp
@@ -196,9 +205,14 @@ func tokenFromFile(file string) (*oauth2.Token, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() {
+		cerr := f.Close()
+		if err == nil {
+			err = cerr
+		}
+	}()
 	tok := &oauth2.Token{}
-	err = json.NewDecoder(f).Decode(tok)
+	err = json.NewDecoder(f).Decode(&tok)
 	return tok, err
 }
 
@@ -212,6 +226,7 @@ func saveToken(path string, token *oauth2.Token) {
 	json.NewEncoder(f).Encode(token)
 }
 
+// PathID contains the path and the id returned for it
 type PathID struct {
 	path string
 	id   string
@@ -227,10 +242,18 @@ func CreateFile(service *drive.Service, local string, parentID string) (string, 
 	if err != nil {
 		return "", err
 	}
-	defer localfile.Close()
+	defer func() {
+		cerr := localfile.Close()
+		if err == nil {
+			err = cerr
+		}
+	}()
 
 	buf := new(bytes.Buffer)
-	buf.ReadFrom(localfile)
+	_, err = buf.ReadFrom(localfile)
+	if err != nil {
+		return "", err
+	}
 	data := buf.Bytes()
 	checksum := fmt.Sprintf("%x", md5.Sum(data))
 	appData := make(map[string]string)
@@ -292,6 +315,8 @@ func DeleteFileOrFolder(service *drive.Service, id string) error {
 	return service.Files.Delete(id).Do()
 }
 
+// QueryFileID queries Google drive for the id of a file (or folder) with the givwn path
+// If the file is found, then err is nil
 func QueryFileID(service *drive.Service, local string) (string, error) {
 	parts := afs.SplitPathPlatform(local)
 	name := parts[len(parts)-1]
@@ -317,9 +342,11 @@ func QueryFileID(service *drive.Service, local string) (string, error) {
 			break
 		}
 	}
-	return "", fmt.Errorf("Didn't find %s in you Drive", local)
+	return "", fmt.Errorf("didn't find %s in you Drive", local)
 }
 
+// QueryAllContents returns a list of all the files uploaded to Drive by
+// Piledriver that were not trashed by the user
 func QueryAllContents(service *drive.Service) ([]*drive.File, error) {
 	nextPageToken := ""
 	var nonTrashFiles []*drive.File

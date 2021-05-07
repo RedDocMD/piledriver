@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"log"
+
 	"github.com/RedDocMD/piledriver/config"
 	"github.com/RedDocMD/piledriver/utils"
 	"github.com/spf13/cobra"
@@ -16,7 +18,10 @@ Piledriver has created. So Piledriver cannot see files that it has
 not synced`,
 	Run: func(cmd *cobra.Command, args []string) {
 		var config config.Config
-		viper.Unmarshal(&config)
+		err := viper.Unmarshal(&config)
+		if err != nil {
+			log.Fatalf("Unable to parse config: %s\n", err)
+		}
 		utils.AuthorizeApp(config.TokenPath)
 	},
 	DisableFlagsInUseLine: true,
