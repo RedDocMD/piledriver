@@ -27,8 +27,13 @@ var rootCmd = &cobra.Command{
 			log.Fatalf("Error in config file: %s\n", err)
 		}
 
+		// Init state and add directories
 		state := utils.NewState()
 		state.InitService(config.TokenPath)
+		state.InitWatcher()
+		for _, dir := range config.Directories {
+			state.AddDir(dir.Local)
+		}
 
 		// Run the watch loop to accumulate changes in the init period
 		go utils.WatchLoop(state)
@@ -56,10 +61,8 @@ var rootCmd = &cobra.Command{
 			remoteName string
 		}
 
-		state.InitWatcher()
 		driveTreesNames := make(map[string]TreeName)
 		for _, dir := range config.Directories {
-			state.AddDir(dir.Local)
 			tree, err := afs.NewTreeFromDrive(driveFiles, dir.Remote)
 			if err != nil {
 				log.Println(err)
