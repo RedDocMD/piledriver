@@ -1,7 +1,14 @@
 package main
 
-import "github.com/RedDocMD/piledriver/cmd"
+import (
+	"log"
+
+	"github.com/RedDocMD/piledriver/cmd"
+)
 
 func main() {
-	cmd.Execute()
+	err := cmd.Execute()
+	if err != nil {
+		log.Fatalln(err)
+	}
 }

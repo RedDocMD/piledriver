@@ -59,9 +59,9 @@ func (state *State) Tree(name string) (*afs.Tree, bool) {
 	return tree, ok
 }
 
-func (state *State) scanDir(dir string) {
+func (state *State) scanDir(dir string) error {
 	// Assume that dir has already been added to state.trees
-	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+	return filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			log.Print("Failed to scan - ", err)
 			return nil
@@ -76,7 +76,7 @@ func (state *State) scanDir(dir string) {
 }
 
 // AddDir adds a directory to the watcher and scans paths
-func (state *State) AddDir(dir string) {
+func (state *State) AddDir(dir string) error {
 	added := false
 	for name := range state.trees {
 		if strings.HasPrefix(dir, name) {
@@ -88,8 +88,11 @@ func (state *State) AddDir(dir string) {
 		tree := afs.NewTree(dir)
 		state.trees[tree.RootPath()] = tree
 	}
-	state.scanDir(dir)
-	addDirRecursive(dir, state.watcher)
+	err := state.scanDir(dir)
+	if err != nil {
+		return err
+	}
+	return addDirRecursive(dir, state.watcher)
 }
 
 // isDir checks a path if it is a directory

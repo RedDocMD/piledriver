@@ -177,12 +177,21 @@ func handleOAuthRedirect(port int, wg *sync.WaitGroup, ans *chan map[string]stri
 
 		if code, ok := queries["code"]; ok {
 			resp["code"] = code[0]
-			w.Write(successBytes)
+			_, err := w.Write(successBytes)
+			if err != nil {
+				log.Fatalf("Failed to write to localhost:%d: %s\n", port, err)
+			}
 		} else if err, ok := queries["error"]; ok {
 			resp["error"] = err[0]
-			w.Write(failureBytes)
+			_, err := w.Write(failureBytes)
+			if err != nil {
+				log.Fatalf("Failed to write to localhost:%d: %s\n", port, err)
+			}
 		} else {
-			w.Write([]byte("Unknown problem occured"))
+			_, err := w.Write([]byte("Unknown problem occured"))
+			if err != nil {
+				log.Fatalf("Failed to write to localhost:%d: %s\n", port, err)
+			}
 		}
 
 		*ans <- resp
@@ -196,9 +205,14 @@ func tokenFromFile(file string) (*oauth2.Token, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() {
+		cerr := f.Close()
+		if err == nil {
+			err = cerr
+		}
+	}()
 	tok := &oauth2.Token{}
-	err = json.NewDecoder(f).Decode(tok)
+	err = json.NewDecoder(f).Decode(&tok)
 	return tok, err
 }
 
@@ -227,10 +241,18 @@ func CreateFile(service *drive.Service, local string, parentID string) (string, 
 	if err != nil {
 		return "", err
 	}
-	defer localfile.Close()
+	defer func() {
+		cerr := localfile.Close()
+		if err == nil {
+			err = cerr
+		}
+	}()
 
 	buf := new(bytes.Buffer)
-	buf.ReadFrom(localfile)
+	_, err = buf.ReadFrom(localfile)
+	if err != nil {
+		return "", err
+	}
 	data := buf.Bytes()
 	checksum := fmt.Sprintf("%x", md5.Sum(data))
 	appData := make(map[string]string)

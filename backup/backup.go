@@ -6,12 +6,12 @@ import (
 	"google.golang.org/api/drive/v3"
 )
 
-// BackupToDrive is a sort of force backup, where the local tree and the drive tree is made consistent.
+// ToDrive is a sort of force backup, where the local tree and the drive tree is made consistent.
 // This is only necessary:
 //   - When a new folder is added to be backuped (or for the first time Piledriver is run)
 //   - When you make changes in the local fs with Piledriver off
 //   - When you manually edit the files in Drive
-func BackupToDrive(
+func ToDrive(
 	localTree, driveTree *afs.Tree,
 	remoteRootName string,
 	service *drive.Service,
@@ -40,41 +40,43 @@ func BackupToDrive(
 				driveNode.Parent().DriveID(),
 				false,
 			)
-		} else {
-			localChildren := localNode.Children()
-			driveChildren := driveNode.Children()
-			var driveChildrenCovered []*afs.Node
-			for localName := range localChildren {
-				localChild := localChildren[localName]
-				pathParts = append(pathParts, localChild.Name())
-				var err error
-				if driveChild, ok := driveChildren[localName]; !ok {
-					err = backupNode(
-						localChild,
-						service,
-						afs.JoinPathPlatform(pathParts, true),
-						remoteRootName,
-						driveNode.DriveID(),
-						false,
-					)
-				} else {
-					driveChildrenCovered = append(driveChildrenCovered, driveChild)
-					err = backupOnMismatch(localChild, driveChild)
-				}
+		}
+		localChildren := localNode.Children()
+		driveChildren := driveNode.Children()
+		var driveChildrenCovered []*afs.Node
+		for localName := range localChildren {
+			localChild := localChildren[localName]
+			pathParts = append(pathParts, localChild.Name())
+			var err error
+			if driveChild, ok := driveChildren[localName]; !ok {
+				err = backupNode(
+					localChild,
+					service,
+					afs.JoinPathPlatform(pathParts, true),
+					remoteRootName,
+					driveNode.DriveID(),
+					false,
+				)
+			} else {
+				driveChildrenCovered = append(driveChildrenCovered, driveChild)
+				err = backupOnMismatch(localChild, driveChild)
+			}
+			if err != nil {
+				return err
+			}
+			pathParts = pathParts[0 : len(pathParts)-1]
+		}
+		// Now remove extra nodes from Drive Tree
+		for driveName := range driveChildren {
+			driveChild := driveChildren[driveName]
+			if !nodeIsPresent(driveChildrenCovered, driveChild) {
+				err := utils.DeleteFileOrFolder(service, driveChild.DriveID())
 				if err != nil {
 					return err
 				}
-				pathParts = pathParts[0 : len(pathParts)-1]
 			}
-			// Now remove extra nodes from Drive Tree
-			for driveName := range driveChildren {
-				driveChild := driveChildren[driveName]
-				if !nodeIsPresent(driveChildrenCovered, driveChild) {
-					utils.DeleteFileOrFolder(service, driveChild.DriveID())
-				}
-			}
-			return nil
 		}
+		return nil
 	}
 	return backupOnMismatch(localTree.Root(), driveTree.Root())
 }

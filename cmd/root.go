@@ -76,7 +76,7 @@ var rootCmd = &cobra.Command{
 			if driveTreeName.tree == nil || !localTree.EqualsIgnore(driveTreeName.tree, true) {
 				updated = true
 				log.Printf("Backing up tree in %s ...\n", localTree.RootPath())
-				err = backup.BackupToDrive(
+				err = backup.ToDrive(
 					localTree,
 					driveTreeName.tree,
 					driveTreeName.remoteName,

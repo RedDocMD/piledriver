@@ -97,6 +97,7 @@ func (node *Node) String() string {
 	return b.String()
 }
 
+// Children returns the children field of the Node
 func (node *Node) Children() map[string]*Node {
 	return node.children
 }
@@ -115,26 +116,26 @@ func NewTree(dir string) *Tree {
 	}
 }
 
-// TreeFromDrive reconstructs the tree from the list of files
+// NewTreeFromDrive reconstructs the tree from the list of files
 // retrieved from Google Drive
 func NewTreeFromDrive(files []*drive.File, rootPath string) (*Tree, error) {
-	rootId := ""
+	rootID := ""
 	rootPathParts := SplitPathPlatform(rootPath)
 	rootName := rootPathParts[len(rootPathParts)-1]
 	childrenOf := make(map[string][]*drive.File)
 	for _, file := range files {
 		if rootName == file.Name {
-			rootId = file.Id
+			rootID = file.Id
 		}
-		parentId := file.Parents[0]
-		childrenOf[parentId] = append(childrenOf[parentId], file)
+		parentID := file.Parents[0]
+		childrenOf[parentID] = append(childrenOf[parentID], file)
 	}
-	if rootId == "" {
+	if rootID == "" {
 		return nil, fmt.Errorf("can't find id for %s", rootPath)
 	}
 
 	rootNode := newNode(rootName, true, nil)
-	rootNode.driveID = rootId
+	rootNode.driveID = rootID
 
 	// Do BFS
 	queue := []*Node{rootNode}
@@ -163,6 +164,7 @@ func NewTreeFromDrive(files []*drive.File, rootPath string) (*Tree, error) {
 	return tree, nil
 }
 
+// Root returns the root node of the tree
 func (tree *Tree) Root() *Node {
 	return tree.root
 }
@@ -361,13 +363,13 @@ func (node *Node) EqualsIgnore(other *Node, ignoreName, ignorePropagate bool) bo
 	}
 	for name := range node.children {
 		thisChild := node.children[name]
-		if otherChild, ok := other.children[name]; !ok {
+		otherChild, ok := other.children[name]
+		if !ok {
 			return false
-		} else {
-			ignore := ignoreName && ignorePropagate
-			if childEqual := thisChild.EqualsIgnore(otherChild, ignore, ignorePropagate); !childEqual {
-				return false
-			}
+		}
+		ignore := ignoreName && ignorePropagate
+		if childEqual := thisChild.EqualsIgnore(otherChild, ignore, ignorePropagate); !childEqual {
+			return false
 		}
 	}
 	return len(node.children) == len(other.children)
@@ -393,15 +395,19 @@ func (tree *Tree) CalculateChecksums() error {
 			if err != nil {
 				return err
 			}
-			defer file.Close()
 			sum := md5.New()
-			io.Copy(sum, file)
+			_, err = io.Copy(sum, file)
+			if err != nil {
+				return err
+			}
 			checksum := fmt.Sprintf("%x", sum.Sum(nil))
 			node.md5sum = checksum
+			if err = file.Close(); err != nil {
+				return err
+			}
 		}
 		pathParts = pathParts[0 : len(pathParts)-1]
 		return nil
 	}
-	calculate(tree.root)
-	return nil
+	return calculate(tree.root)
 }
