@@ -88,9 +88,6 @@ func GetDriveService(tokenLocation string) *drive.Service {
 
 	ctx := context.Background()
 
-	redirectPath := "http://127.0.0.1"
-	redirectPort := 4598
-
 	conf := &oauth2.Config{
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
@@ -99,10 +96,20 @@ func GetDriveService(tokenLocation string) *drive.Service {
 			AuthURL:  "https://accounts.google.com/o/oauth2/auth",
 			TokenURL: "https://oauth2.googleapis.com/token",
 		},
-		RedirectURL: fmt.Sprintf("%s:%d", redirectPath, redirectPort),
 	}
-
-	driveService, err := drive.NewService(ctx, option.WithTokenSource(conf.TokenSource(ctx, tok)))
+	restoredToken := &oauth2.Token{
+		AccessToken:  tok.AccessToken,
+		RefreshToken: tok.RefreshToken,
+		Expiry:       tok.Expiry,
+		TokenType:    tok.TokenType,
+	}
+	tokenSource := conf.TokenSource(ctx, restoredToken)
+	httpClient := oauth2.NewClient(ctx, tokenSource)
+	_, err = tokenSource.Token()
+	if err != nil {
+		log.Fatalf("Piledriver has not been authenticated: please run \"piledriver auth\"\n")
+	}
+	driveService, err := drive.NewService(ctx, option.WithHTTPClient(httpClient))
 	if err != nil {
 		log.Fatalf("Failed to create drive client: %s\n", err)
 	}
@@ -140,12 +147,7 @@ func AuthorizeApp(tokenLocation string) {
 
 	var wg sync.WaitGroup
 	authChan := make(chan map[string]string)
-	wg.Add(1)
-	go func() {
-		handleOAuthRedirect(redirectPort, &wg, &authChan)
-	}()
-	wg.Wait()
-
+	go handleOAuthRedirect(redirectPort, &wg, &authChan)
 	ans := <-authChan
 
 	var code string
@@ -195,7 +197,6 @@ func handleOAuthRedirect(port int, wg *sync.WaitGroup, ans *chan map[string]stri
 		}
 
 		*ans <- resp
-		wg.Done()
 	})
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), nil))
 }

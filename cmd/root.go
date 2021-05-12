@@ -27,7 +27,6 @@ var rootCmd = &cobra.Command{
 			log.Fatalf("Error in config file: %s\n", err)
 		}
 
-		// Init state and add directories
 		state := utils.NewState()
 		state.InitService(config.TokenPath)
 		state.InitWatcher()
