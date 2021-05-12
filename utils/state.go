@@ -164,3 +164,13 @@ func (state *State) attachID(path, id string) bool {
 	}
 	return false
 }
+
+func (state *State) retrieveID(path string) (string, bool) {
+	for _, tree := range state.trees {
+		id, err := tree.RetrieveID(path)
+		if err != nil {
+			return id, true
+		}
+	}
+	return "", false
+}

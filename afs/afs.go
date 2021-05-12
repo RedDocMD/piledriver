@@ -359,6 +359,15 @@ func (tree *Tree) AttachID(path, id string) bool {
 	return true
 }
 
+// RetrieveID returns the Google Drive id to a path
+func (tree *Tree) RetrieveID(path string) (string, error) {
+	node, ok := tree.findPath(path)
+	if !ok {
+		return "", fmt.Errorf("Path not found: %s\n" + path)
+	}
+	return node.driveID, nil
+}
+
 // EqualsIgnore compares two AFS trees, and checks for structural equality
 // It provides an option for ignoring the inequality of the root names
 func (tree *Tree) EqualsIgnore(other *Tree, ignoreRootName bool) bool {
