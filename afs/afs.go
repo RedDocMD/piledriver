@@ -286,29 +286,45 @@ func (tree *Tree) DeletePath(path string) bool {
 }
 
 // RenamePath renames an old path to a new path
-// The newPath should actually rename the thing (file/folder) referred to by oldPath
-// The two paths should thus differ only by the last "element" in the path
-// If the rename succeeds, then returns true. else false
+// Renames are in the general sense - that is any mv (1)
+// operation causes a "rename".
 func (tree *Tree) RenamePath(oldPath, newPath string) bool {
-	oldPathParts := SplitPathPlatform(oldPath)
-	newPathParts := SplitPathPlatform(newPath)
+	// oldPathParts := SplitPathPlatform(oldPath)
+	// newPathParts := SplitPathPlatform(newPath)
 
-	if len(oldPathParts) != len(newPathParts) {
-		return false
-	}
-	for i := 0; i < len(newPathParts)-1; i++ {
-		if newPathParts[i] != oldPathParts[i] {
-			return false
-		}
-	}
+	// if len(oldPathParts) != len(newPathParts) {
+	// 	return false
+	// }
+	// for i := 0; i < len(newPathParts)-1; i++ {
+	// 	if newPathParts[i] != oldPathParts[i] {
+	// 		return false
+	// 	}
+	// }
 
-	node, ok := tree.findPath(oldPath)
+	// node, ok := tree.findPath(oldPath)
+	// if !ok {
+	// 	return false
+	// }
+	// node.name = newPathParts[len(newPathParts)-1]
+	// delete(node.parentNode.children, oldPathParts[len(oldPathParts)-1])
+	// node.parentNode.children[node.name] = node
+	// return true
+	oldNode, ok := tree.findPath(oldPath)
 	if !ok {
 		return false
 	}
-	node.name = newPathParts[len(newPathParts)-1]
-	delete(node.parentNode.children, oldPathParts[len(oldPathParts)-1])
-	node.parentNode.children[node.name] = node
+	oldNodeParent := oldNode.parentNode
+	newPathParts := SplitPathPlatform(newPath)
+	newPathParent := JoinPathPlatform(newPathParts[0:len(newPathParts)-1], true)
+	newPathParentNode, ok := tree.findPath(newPathParent)
+	if !ok {
+		return false
+	}
+
+	delete(oldNodeParent.children, oldNode.name)
+	newPathParentNode.children[oldNode.name] = oldNode
+	oldNode.parentNode = newPathParentNode
+
 	return true
 }
 
