@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/fsnotify/fsnotify"
 )
@@ -30,6 +31,7 @@ func WatchLoop(state *State) {
 			pushEvent := true
 
 			idMap := make(map[IDKey]string)
+			timestamp := time.Now()
 
 			var isDir bool
 			var err error
@@ -109,10 +111,11 @@ func WatchLoop(state *State) {
 
 			if pushEvent {
 				events <- Event{
-					Path:     path,
-					OldPath:  pathToBeRenamed,
-					Category: category,
-					IDMap:    idMap,
+					Path:      path,
+					OldPath:   pathToBeRenamed,
+					Category:  category,
+					IDMap:     idMap,
+					Timestamp: timestamp,
 				}
 			}
 		case event, ok := <-watcher.Errors:

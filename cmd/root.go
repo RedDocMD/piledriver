@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"sync"
 
 	"github.com/RedDocMD/piledriver/afs"
 	"github.com/RedDocMD/piledriver/backup"
@@ -132,16 +133,17 @@ var rootCmd = &cobra.Command{
 			log.Printf("Updated to drive, tree rooted at %s\n", localTree.RootPath())
 		}
 
-		// const noOfWorkers int = 12
-		// for i := 0; i < noOfWorkers; i++ {
-		// 	go utils.ExecuteEvents(state)
-		// }
-		utils.ExecuteEvents(state)
+		const noOfWorkers int = 12
+		for i := 0; i < noOfWorkers; i++ {
+			go utils.ExecuteEvents(state)
+		}
+		go utils.DebounceEvents(state.FileEvents, state.DebouncedEvents)
+		// utils.ExecuteEvents(state)
 
 		// Now just keep on running
-		// var wg sync.WaitGroup
-		// wg.Add(1)
-		// wg.Wait()
+		var wg sync.WaitGroup
+		wg.Add(1)
+		wg.Wait()
 	},
 }
 

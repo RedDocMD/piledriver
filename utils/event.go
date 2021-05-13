@@ -20,6 +20,7 @@ const (
 	FileRenamed
 	DirectoryRenamed
 	FileWritten
+	MaxEventCategory
 )
 
 // IDKey denotes the key for the ID type
@@ -33,10 +34,11 @@ const (
 
 // Event is the internal representation of file watcher events
 type Event struct {
-	OldPath  string
-	Path     string
-	Category EventCategory
-	IDMap    map[IDKey]string
+	OldPath   string
+	Path      string
+	Category  EventCategory
+	IDMap     map[IDKey]string
+	Timestamp time.Time
 }
 
 func (ev Event) String() string {
@@ -86,7 +88,7 @@ func ExecuteEvents(state *State) {
 
 	const sleepTime = 1 * time.Second
 
-	for ev := range state.FileEvents {
+	for ev := range state.DebouncedEvents {
 		log.Println(ev)
 		switch ev.Category {
 		case FileCreated:

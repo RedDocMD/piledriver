@@ -16,20 +16,22 @@ import (
 
 // State holds global state info for the program
 type State struct {
-	Config      config.Config
-	LogFilePath string
-	FileEvents  chan Event
-	watcher     *fsnotify.Watcher
-	service     *drive.Service
-	trees       map[string]*afs.Tree // Map from root path to tree
-	mu          sync.Mutex
+	Config          config.Config
+	LogFilePath     string
+	FileEvents      chan Event
+	DebouncedEvents chan Event
+	watcher         *fsnotify.Watcher
+	service         *drive.Service
+	trees           map[string]*afs.Tree // Map from root path to tree
+	mu              sync.Mutex
 }
 
 // NewState returns a new blank state
 func NewState() *State {
 	return &State{
-		FileEvents: make(chan Event, 512),
-		trees:      make(map[string]*afs.Tree),
+		FileEvents:      make(chan Event, 512),
+		DebouncedEvents: make(chan Event, 512),
+		trees:           make(map[string]*afs.Tree),
 	}
 }
 
