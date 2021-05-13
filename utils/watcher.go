@@ -42,7 +42,10 @@ func WatchLoop(state *State) {
 					}
 				}
 			} else {
-				isDir, _ = state.isDir(pathToBeRenamed)
+				isDir, err = state.isDir(pathToBeRenamed)
+				if err != nil {
+					pushEvent = false
+				}
 			}
 
 			switch event.Op {
@@ -60,10 +63,16 @@ func WatchLoop(state *State) {
 					renamePending = false
 				} else {
 					if isDir {
-						state.AddDir(path)
+						err := state.AddDir(path)
+						if err != nil {
+							log.Println("Failed to add", path, "to tree")
+						}
 						category = DirectoryCreated
 					} else {
-						state.addFile(path)
+						ok := state.addFile(path)
+						if !ok {
+							log.Println("Failed to add", path, "to tree")
+						}
 						category = FileCreated
 					}
 				}

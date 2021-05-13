@@ -173,9 +173,9 @@ func (tree *Tree) String() string {
 	prefixString := func(level uint) string {
 		var builder strings.Builder
 		for i := level; i > uint(0); i-- {
-			fmt.Fprint(&builder, "|  ")
+			fmt.Fprint(&builder, "\u2502  ")
 		}
-		fmt.Fprint(&builder, "|--")
+		fmt.Fprint(&builder, "\u2502\u2500\u2500")
 		return builder.String()
 	}
 

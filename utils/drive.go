@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"strings"
 	"sync"
 
 	"github.com/RedDocMD/piledriver/afs"
@@ -107,7 +108,11 @@ func GetDriveService(tokenLocation string) *drive.Service {
 	httpClient := oauth2.NewClient(ctx, tokenSource)
 	_, err = tokenSource.Token()
 	if err != nil {
-		log.Fatalf("Piledriver has not been authenticated: please run \"piledriver auth\"\n")
+		if !strings.Contains(err.Error(), "failure in name resolution") {
+			log.Fatalf("Piledriver has not been authenticated: please run \"piledriver auth\"\n")
+		} else {
+			log.Fatalf("Failed to startup Piledriver: %s\n", err)
+		}
 	}
 	driveService, err := drive.NewService(ctx, option.WithHTTPClient(httpClient))
 	if err != nil {
@@ -241,7 +246,8 @@ func CreateFile(service *drive.Service, local string, parentID string) (string, 
 	filename := path.Base(local)
 	localfile, err := os.Open(local)
 	if err != nil {
-		return "", err
+		log.Println(err)
+		return "", fmt.Errorf("Failed in file IO")
 	}
 	defer func() {
 		cerr := localfile.Close()
@@ -253,7 +259,8 @@ func CreateFile(service *drive.Service, local string, parentID string) (string, 
 	buf := new(bytes.Buffer)
 	_, err = buf.ReadFrom(localfile)
 	if err != nil {
-		return "", err
+		log.Println(err)
+		return "", fmt.Errorf("Failed in file IO")
 	}
 	data := buf.Bytes()
 	checksum := fmt.Sprintf("%x", md5.Sum(data))
@@ -269,19 +276,29 @@ func CreateFile(service *drive.Service, local string, parentID string) (string, 
 		Create(driveFile).
 		Media(buf).
 		Do()
-	return driveFile.Id, err
+	if err != nil {
+		return "", err
+	} else {
+		return driveFile.Id, nil
+	}
 }
 
 // UpdateFile updates the file to the new contents
 func UpdateFile(service *drive.Service, local, fileID string) (*drive.File, error) {
 	localfile, err := os.Open(local)
 	if err != nil {
-		return nil, err
+		log.Println(err)
+		return nil, fmt.Errorf("Failed in file IO")
 	}
+
 	defer localfile.Close()
 
 	buf := new(bytes.Buffer)
-	buf.ReadFrom(localfile)
+	_, err = buf.ReadFrom(localfile)
+	if err != nil {
+		log.Println(err)
+		return nil, fmt.Errorf("Failed in file IO")
+	}
 	data := buf.Bytes()
 	checksum := fmt.Sprintf("%x", md5.Sum(data))
 	appData := make(map[string]string)
@@ -294,6 +311,29 @@ func UpdateFile(service *drive.Service, local, fileID string) (*drive.File, erro
 		Update(fileID, driveFile).
 		Fields("*").
 		Media(buf).
+		Do()
+	return driveFile, err
+}
+
+// RenameInfo contains fields necessary for renaming a file/folder
+type RenameInfo struct {
+	ID          string
+	OldParentID string
+	NewParentID string
+	NewName     string
+}
+
+// RenameFileOrFolder models the UNIX mv (1) command for Google Drive
+func RenameFileOrFolder(service *drive.Service, info RenameInfo) (*drive.File, error) {
+	file := &drive.File{
+		Name: info.NewName,
+	}
+
+	driveFile, err := service.Files.
+		Update(info.ID, file).
+		RemoveParents(info.OldParentID).
+		AddParents(info.NewParentID).
+		Fields("*").
 		Do()
 	return driveFile, err
 }

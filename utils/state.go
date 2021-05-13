@@ -186,7 +186,7 @@ func (state *State) retrieveID(path string) (string, bool) {
 	defer state.mu.Unlock()
 	for _, tree := range state.trees {
 		id, err := tree.RetrieveID(path)
-		if err != nil {
+		if err == nil {
 			return id, true
 		}
 	}

@@ -135,7 +135,7 @@ var rootCmd = &cobra.Command{
 
 		const noOfWorkers int = 12
 		for i := 0; i < noOfWorkers; i++ {
-			go utils.ExecuteEvents(state.FileEvents)
+			go utils.ExecuteEvents(state)
 		}
 
 		// Now just keep on running
