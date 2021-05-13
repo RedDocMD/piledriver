@@ -302,6 +302,7 @@ func (tree *Tree) RenamePath(oldPath, newPath string) bool {
 	}
 
 	delete(oldNodeParent.children, oldNode.name)
+	oldNode.name = newPathParts[len(newPathParts)-1]
 	newPathParentNode.children[oldNode.name] = oldNode
 	oldNode.parentNode = newPathParentNode
 

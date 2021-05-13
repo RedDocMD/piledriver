@@ -127,8 +127,9 @@ func TestRenamePath(t *testing.T) {
 
 	_, found := tree.findPath(filepath.Join(path, filepath.FromSlash("dir1/dir3/file6")))
 	assert.True(found)
-	tree.RenamePath(filepath.Join(path, filepath.FromSlash("dir1/dir3/file6")),
+	ok := tree.RenamePath(filepath.Join(path, filepath.FromSlash("dir1/dir3/file6")),
 		filepath.Join(path, filepath.FromSlash("dir1/dir3/newfile")))
+	assert.True(ok)
 	_, found = tree.findPath(filepath.Join(path, "dir1/dir3/newfile"))
 	assert.True(found)
 	_, found = tree.findPath(filepath.Join(path, filepath.FromSlash("dir1/dir3/file6")))
