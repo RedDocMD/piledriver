@@ -173,9 +173,9 @@ func (tree *Tree) String() string {
 	prefixString := func(level uint) string {
 		var builder strings.Builder
 		for i := level; i > uint(0); i-- {
-			fmt.Fprint(&builder, "|  ")
+			fmt.Fprint(&builder, "\u2502  ")
 		}
-		fmt.Fprint(&builder, "|--")
+		fmt.Fprint(&builder, "\u2502\u2500\u2500")
 		return builder.String()
 	}
 
@@ -286,29 +286,26 @@ func (tree *Tree) DeletePath(path string) bool {
 }
 
 // RenamePath renames an old path to a new path
-// The newPath should actually rename the thing (file/folder) referred to by oldPath
-// The two paths should thus differ only by the last "element" in the path
-// If the rename succeeds, then returns true. else false
+// Renames are in the general sense - that is any mv (1)
+// operation causes a "rename".
 func (tree *Tree) RenamePath(oldPath, newPath string) bool {
-	oldPathParts := SplitPathPlatform(oldPath)
-	newPathParts := SplitPathPlatform(newPath)
-
-	if len(oldPathParts) != len(newPathParts) {
-		return false
-	}
-	for i := 0; i < len(newPathParts)-1; i++ {
-		if newPathParts[i] != oldPathParts[i] {
-			return false
-		}
-	}
-
-	node, ok := tree.findPath(oldPath)
+	oldNode, ok := tree.findPath(oldPath)
 	if !ok {
 		return false
 	}
-	node.name = newPathParts[len(newPathParts)-1]
-	delete(node.parentNode.children, oldPathParts[len(oldPathParts)-1])
-	node.parentNode.children[node.name] = node
+	oldNodeParent := oldNode.parentNode
+	newPathParts := SplitPathPlatform(newPath)
+	newPathParent := JoinPathPlatform(newPathParts[0:len(newPathParts)-1], true)
+	newPathParentNode, ok := tree.findPath(newPathParent)
+	if !ok {
+		return false
+	}
+
+	delete(oldNodeParent.children, oldNode.name)
+	oldNode.name = newPathParts[len(newPathParts)-1]
+	newPathParentNode.children[oldNode.name] = oldNode
+	oldNode.parentNode = newPathParentNode
+
 	return true
 }
 
@@ -341,6 +338,15 @@ func (tree *Tree) AttachID(path, id string) bool {
 	}
 	node.driveID = id
 	return true
+}
+
+// RetrieveID returns the Google Drive id to a path
+func (tree *Tree) RetrieveID(path string) (string, error) {
+	node, ok := tree.findPath(path)
+	if !ok {
+		return "", fmt.Errorf("Path not found: %s\n" + path)
+	}
+	return node.driveID, nil
 }
 
 // EqualsIgnore compares two AFS trees, and checks for structural equality

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/RedDocMD/piledriver/afs"
 	"github.com/RedDocMD/piledriver/config"
@@ -15,19 +16,22 @@ import (
 
 // State holds global state info for the program
 type State struct {
-	Config      config.Config
-	LogFilePath string
-	FileEvents  chan Event
-	watcher     *fsnotify.Watcher
-	service     *drive.Service
-	trees       map[string]*afs.Tree // Map from root path to tree
+	Config          config.Config
+	LogFilePath     string
+	FileEvents      chan Event
+	DebouncedEvents chan Event
+	watcher         *fsnotify.Watcher
+	service         *drive.Service
+	trees           map[string]*afs.Tree // Map from root path to tree
+	mu              sync.Mutex
 }
 
 // NewState returns a new blank state
 func NewState() *State {
 	return &State{
-		FileEvents: make(chan Event, 512),
-		trees:      make(map[string]*afs.Tree),
+		FileEvents:      make(chan Event, 512),
+		DebouncedEvents: make(chan Event, 512),
+		trees:           make(map[string]*afs.Tree),
 	}
 }
 
@@ -79,6 +83,7 @@ func (state *State) scanDir(dir string) error {
 
 // AddDir adds a directory to the watcher and scans paths
 func (state *State) AddDir(dir string) error {
+	state.mu.Lock()
 	added := false
 	for name := range state.trees {
 		if strings.HasPrefix(dir, name) {
@@ -91,6 +96,7 @@ func (state *State) AddDir(dir string) error {
 		state.trees[tree.RootPath()] = tree
 	}
 	err := state.scanDir(dir)
+	state.mu.Unlock()
 	if err != nil {
 		return err
 	}
@@ -99,6 +105,8 @@ func (state *State) AddDir(dir string) error {
 
 // isDir checks a path if it is a directory
 func (state *State) isDir(path string) (bool, error) {
+	state.mu.Lock()
+	defer state.mu.Unlock()
 	for name := range state.trees {
 		if strings.HasPrefix(path, name) {
 			stat, err := state.trees[name].IsDir(path)
@@ -113,6 +121,8 @@ func (state *State) isDir(path string) (bool, error) {
 
 // Adds a file and returns whether it was actually added
 func (state *State) addFile(path string) bool {
+	state.mu.Lock()
+	defer state.mu.Unlock()
 	// Assume parent directory has been added before
 	for name := range state.trees {
 		if strings.HasPrefix(path, name) {
@@ -124,6 +134,8 @@ func (state *State) addFile(path string) bool {
 }
 
 func (state *State) delPath(path string) bool {
+	state.mu.Lock()
+	defer state.mu.Unlock()
 	for name := range state.trees {
 		if strings.HasPrefix(path, name) {
 			done := state.trees[name].DeletePath(path)
@@ -134,6 +146,8 @@ func (state *State) delPath(path string) bool {
 }
 
 func (state *State) renamePath(oldPath, newPath string) bool {
+	state.mu.Lock()
+	defer state.mu.Unlock()
 	for name, tree := range state.trees {
 		if strings.HasPrefix(oldPath, name) {
 			isDir, _ := tree.IsDir(oldPath)
@@ -148,6 +162,8 @@ func (state *State) renamePath(oldPath, newPath string) bool {
 }
 
 func (state *State) pathExists(path string) bool {
+	state.mu.Lock()
+	defer state.mu.Unlock()
 	for _, tree := range state.trees {
 		if tree.ContainsPath(path) {
 			return true
@@ -157,10 +173,24 @@ func (state *State) pathExists(path string) bool {
 }
 
 func (state *State) attachID(path, id string) bool {
+	state.mu.Lock()
+	defer state.mu.Unlock()
 	for _, tree := range state.trees {
 		if tree.AttachID(path, id) {
 			return true
 		}
 	}
 	return false
+}
+
+func (state *State) retrieveID(path string) (string, bool) {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	for _, tree := range state.trees {
+		id, err := tree.RetrieveID(path)
+		if err == nil {
+			return id, true
+		}
+	}
+	return "", false
 }
