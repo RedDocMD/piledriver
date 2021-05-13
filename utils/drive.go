@@ -260,7 +260,7 @@ func CreateFile(service *drive.Service, local string, parentID string) (string, 
 	_, err = buf.ReadFrom(localfile)
 	if err != nil {
 		log.Println(err)
-		return "", fmt.Errorf("Failed in file IO")
+		return "", fmt.Errorf("failed in file IO")
 	}
 	data := buf.Bytes()
 	checksum := fmt.Sprintf("%x", md5.Sum(data))
@@ -278,9 +278,8 @@ func CreateFile(service *drive.Service, local string, parentID string) (string, 
 		Do()
 	if err != nil {
 		return "", err
-	} else {
-		return driveFile.Id, nil
 	}
+	return driveFile.Id, nil
 }
 
 // UpdateFile updates the file to the new contents
@@ -288,7 +287,7 @@ func UpdateFile(service *drive.Service, local, fileID string) (*drive.File, erro
 	localfile, err := os.Open(local)
 	if err != nil {
 		log.Println(err)
-		return nil, fmt.Errorf("Failed in file IO")
+		return nil, fmt.Errorf("failed in file IO")
 	}
 
 	defer localfile.Close()
@@ -297,7 +296,7 @@ func UpdateFile(service *drive.Service, local, fileID string) (*drive.File, erro
 	_, err = buf.ReadFrom(localfile)
 	if err != nil {
 		log.Println(err)
-		return nil, fmt.Errorf("Failed in file IO")
+		return nil, fmt.Errorf("failed in file IO")
 	}
 	data := buf.Bytes()
 	checksum := fmt.Sprintf("%x", md5.Sum(data))
