@@ -289,26 +289,6 @@ func (tree *Tree) DeletePath(path string) bool {
 // Renames are in the general sense - that is any mv (1)
 // operation causes a "rename".
 func (tree *Tree) RenamePath(oldPath, newPath string) bool {
-	// oldPathParts := SplitPathPlatform(oldPath)
-	// newPathParts := SplitPathPlatform(newPath)
-
-	// if len(oldPathParts) != len(newPathParts) {
-	// 	return false
-	// }
-	// for i := 0; i < len(newPathParts)-1; i++ {
-	// 	if newPathParts[i] != oldPathParts[i] {
-	// 		return false
-	// 	}
-	// }
-
-	// node, ok := tree.findPath(oldPath)
-	// if !ok {
-	// 	return false
-	// }
-	// node.name = newPathParts[len(newPathParts)-1]
-	// delete(node.parentNode.children, oldPathParts[len(oldPathParts)-1])
-	// node.parentNode.children[node.name] = node
-	// return true
 	oldNode, ok := tree.findPath(oldPath)
 	if !ok {
 		return false
