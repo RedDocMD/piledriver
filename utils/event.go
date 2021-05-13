@@ -22,11 +22,21 @@ const (
 	FileWritten
 )
 
+// IDKey denotes the key for the ID type
+type IDKey int
+
+// Various types of id's
+const (
+	CurrID IDKey = iota
+	ParentID
+)
+
 // Event is the internal representation of file watcher events
 type Event struct {
 	OldPath  string
 	Path     string
 	Category EventCategory
+	IDMap    map[IDKey]string
 }
 
 func (ev Event) String() string {
@@ -129,12 +139,7 @@ func ExecuteEvents(state *State) {
 		case FileDeleted:
 			fallthrough
 		case DirectoryDeleted:
-			path := ev.Path
-			id, ok := getID(path)
-			if !ok {
-				log.Printf("Node for parent of %s not found\n", path)
-				continue
-			}
+			id := ev.IDMap[CurrID]
 			for {
 				err := DeleteFileOrFolder(state.service, id)
 				if err != nil {

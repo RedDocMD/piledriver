@@ -29,6 +29,8 @@ func WatchLoop(state *State) {
 			var category EventCategory
 			pushEvent := true
 
+			idMap := make(map[IDKey]string)
+
 			var isDir bool
 			var err error
 			if !renamePending {
@@ -82,9 +84,16 @@ func WatchLoop(state *State) {
 				} else {
 					category = FileDeleted
 				}
-				if ok := state.delPath(path); !ok {
-					log.Println("Cannot delete: ", path)
+				id, ok := state.retrieveID(path)
+				if !ok {
+					log.Printf("Cannot retrieve ID of %s\n", path)
 					pushEvent = false
+				} else {
+					idMap[CurrID] = id
+					if ok := state.delPath(path); !ok {
+						log.Println("Cannot delete: ", path)
+						pushEvent = false
+					}
 				}
 			case fsnotify.Write:
 				category = FileWritten
@@ -103,6 +112,7 @@ func WatchLoop(state *State) {
 					Path:     path,
 					OldPath:  pathToBeRenamed,
 					Category: category,
+					IDMap:    idMap,
 				}
 			}
 		case event, ok := <-watcher.Errors:
