@@ -86,7 +86,7 @@ func ExecuteEvents(state *State) {
 		return parts[len(parts)-1]
 	}
 
-	const sleepTime = 1 * time.Second
+	const sleepTime = 5 * time.Second
 
 	for ev := range state.DebouncedEvents {
 		log.Println(ev)
