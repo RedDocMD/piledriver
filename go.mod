@@ -22,7 +22,7 @@ require (
 	github.com/stretchr/testify v1.6.1 // indirect
 	golang.org/x/net v0.0.0-20201216054612-986b41b23924 // indirect
 	golang.org/x/oauth2 v0.0.0-20201208152858-08078c50e5b5
-	golang.org/x/sys v0.0.0-20210426230700-d19ff857e887 // indirect
+	golang.org/x/sys v0.0.0-20210616094352-59db8d763f22 // indirect
 	golang.org/x/text v0.3.6 // indirect
 	google.golang.org/api v0.36.0
 	google.golang.org/genproto v0.0.0-20201214200347-8c77b98c765d // indirect
