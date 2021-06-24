@@ -15,7 +15,7 @@ jobs:
     runs-on: ${{matrix.os}}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest]
     steps:
 
     - name: Set up Go 1.x
@@ -32,10 +32,6 @@ jobs:
     - name: Test Linux
       if: ${{ runner.os == 'Linux' }}
       run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
-    
-    - name: Test Windows
-      if: ${{ runner.os == 'Windows' }}
-      run: go test -v ./...
 
     - name: Upload coverage report (only from Linux)
       uses: codecov/codecov-action@v1
