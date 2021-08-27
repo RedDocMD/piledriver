@@ -2,6 +2,7 @@
 name = "piledriver"
 version = "0.1.0"
 authors = ["Deep Majumder <deep.majumder2019@gmail.com"]
-edition = "2021"
+edition = "2018"
 
 [dependencies]
+anyhow = "1.0.43"
