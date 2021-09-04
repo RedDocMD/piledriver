@@ -2,14 +2,72 @@ use anyhow::Result;
 use std::{
     collections::HashMap,
     ffi::OsString,
-    fs,
+    fs::{self, File},
+    os::unix::prelude::MetadataExt,
     path::{Path, PathBuf},
 };
+
+// NodeTime contains the lower 32 bits of
+// any time variant.
+#[derive(PartialEq, Eq)]
+struct NodeTime {
+    sec: u32,
+    nsec: u32,
+}
+
+impl NodeTime {
+    fn ctime<T: MetadataExt>(data: &T) -> Self {
+        Self {
+            sec: lower32(data.ctime()),
+            nsec: lower32(data.ctime_nsec()),
+        }
+    }
+
+    fn mtime<T: MetadataExt>(data: &T) -> Self {
+        Self {
+            sec: lower32(data.mtime()),
+            nsec: lower32(data.mtime_nsec()),
+        }
+    }
+}
+
+fn lower32(val: i64) -> u32 {
+    const MASK: i64 = 0xFFFFFFFF;
+    (val & MASK) as u32
+}
+
+// NodeMetadata contains data to determine
+// whether a file/folder has changed. A folder is
+// said to have changed when one of its child file or
+// child folder has changed.
+// This is inspired from the `struct stat_data` from cache.h
+// of the `git` source code.
+#[derive(PartialEq, Eq)]
+struct NodeMetadata {
+    ctime: NodeTime,
+    mtime: NodeTime,
+    dev: u64,
+    inode: u64,
+    size: u64,
+}
+
+impl NodeMetadata {
+    fn new<T: MetadataExt>(data: &T) -> Self {
+        Self {
+            ctime: NodeTime::ctime(data),
+            mtime: NodeTime::mtime(data),
+            dev: data.dev(),
+            inode: data.ino(),
+            size: data.size(),
+        }
+    }
+}
 
 struct Node {
     name: OsString,
     children: HashMap<OsString, Node>,
     is_dir: bool,
+    metadata: NodeMetadata,
 }
 
 pub struct Tree {
@@ -67,10 +125,12 @@ fn explore_path(path: &Path) -> Result<Node> {
             children.insert(curr_name, node);
         }
     }
+    let file = File::open(path)?;
     Ok(Node {
         name: curr_name,
         children,
         is_dir: path.is_dir(),
+        metadata: NodeMetadata::new(&file.metadata()?),
     })
 }
 
