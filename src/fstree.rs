@@ -25,6 +25,34 @@ impl Tree {
         let root = explore_path(root_path)?;
         Ok(Self { root_parent, root })
     }
+
+    #[cfg(test)]
+    pub fn files(&self) -> Vec<PathBuf> {
+        let mut path = self.root_parent.clone().unwrap_or(PathBuf::from("/"));
+        let mut files = self.root.files(&mut path);
+        files.sort();
+        files
+    }
+}
+
+impl Node {
+    #[cfg(test)]
+    fn files(&self, parent_path: &mut PathBuf) -> Vec<PathBuf> {
+        let curr_path = parent_path;
+        curr_path.push(&self.name);
+        let files = if !self.is_dir {
+            vec![curr_path.clone()]
+        } else {
+            let mut files = Vec::new();
+            for child in self.children.values() {
+                let mut child_files = child.files(curr_path);
+                files.append(&mut child_files);
+            }
+            files
+        };
+        curr_path.pop();
+        files
+    }
 }
 
 fn explore_path(path: &Path) -> Result<Node> {
@@ -44,4 +72,38 @@ fn explore_path(path: &Path) -> Result<Node> {
         children,
         is_dir: path.is_dir(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use std::env;
+
+    use super::*;
+
+    #[test]
+    fn test_tree_construction() {
+        let mut dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+        dir.push("data");
+        dir.push("tree_dir");
+
+        let tree = Tree::new(&dir).unwrap();
+        let files = tree.files();
+
+        let mut expected_files = Vec::new();
+        dir.push("a.dat");
+        expected_files.push(dir.clone());
+        dir.pop();
+        dir.push("b.dat");
+        expected_files.push(dir.clone());
+        dir.pop();
+        dir.push("c");
+        dir.push("e.dat");
+        expected_files.push(dir.clone());
+        dir.pop();
+        dir.push("f.dat");
+        expected_files.push(dir.clone());
+        expected_files.sort();
+
+        assert_eq!(files, expected_files);
+    }
 }
