@@ -6,6 +6,7 @@ use std::{
 pub struct Change {
     path: PathBuf,
     kind: ChangeKind,
+    is_dir: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -33,15 +34,19 @@ impl Display for Change {
 }
 
 impl Change {
-    pub fn new(path: PathBuf, kind: ChangeKind) -> Self {
-        Self { path, kind }
+    pub fn new(path: PathBuf, kind: ChangeKind, is_dir: bool) -> Self {
+        Self { path, kind, is_dir }
     }
 
     pub fn path(&self) -> &Path {
         &self.path
     }
 
-    pub fn kind(&self) -> &ChangeKind {
-        &self.kind
+    pub fn kind(&self) -> ChangeKind {
+        self.kind
+    }
+
+    pub fn is_dir(&self) -> bool {
+        self.is_dir
     }
 }

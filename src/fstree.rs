@@ -1,3 +1,6 @@
+pub mod change;
+
+use self::change::{Change, ChangeKind};
 use anyhow::Result;
 use std::{
     collections::HashMap,
@@ -91,6 +94,12 @@ impl Tree {
         files.sort();
         files
     }
+
+    pub fn difference(&self, other: &Tree) -> Vec<Change> {
+        assert_eq!(self.root_parent, other.root_parent);
+        let mut path = self.root_parent.clone().unwrap_or_default();
+        self.root.difference(&other.root, &mut path)
+    }
 }
 
 impl Node {
@@ -110,6 +119,59 @@ impl Node {
         };
         curr_path.pop();
         files
+    }
+
+    // Call only on directory nodes, with the same names.
+    // Renames cannot really be told without additional heuristics (like git does).
+    // It will probably be a future improvement. For now, rename = add + delete.
+    pub fn difference(&self, other: &Node, path: &mut PathBuf) -> Vec<Change> {
+        assert_eq!(self.name, other.name);
+        assert!(self.is_dir);
+        assert!(other.is_dir);
+
+        if self.metadata == other.metadata {
+            return Vec::new();
+        }
+
+        let mut other_done: HashMap<_, _> = other.children.keys().map(|x| (x, false)).collect();
+        let mut changes = Vec::new();
+
+        for self_child in self.children.keys() {
+            path.push(self_child);
+            let node = &self.children[self_child];
+            if other.children.contains_key(self_child) {
+                let other_node = &other.children[self_child];
+                if node.is_dir && other_node.is_dir {
+                    // Both dir - so recurse
+                    let mut child_changes = node.difference(other_node, path);
+                    changes.append(&mut child_changes);
+                } else if node.is_dir != other_node.is_dir {
+                    // One dir, one file - so add/delete
+                    changes.push(Change::new(path.clone(), ChangeKind::Delete, node.is_dir));
+                    changes.push(Change::new(
+                        path.clone(),
+                        ChangeKind::Add,
+                        other_node.is_dir,
+                    ));
+                } else if node.metadata != other_node.metadata {
+                    // Both file, check for changes
+                    changes.push(Change::new(path.clone(), ChangeKind::Modify, false));
+                }
+                other_done.insert(self_child, true);
+            } else {
+                changes.push(Change::new(path.clone(), ChangeKind::Delete, node.is_dir));
+            }
+            path.pop();
+        }
+        for (other_child, done) in other_done {
+            if !done {
+                let node = &other.children[other_child];
+                path.push(other_child);
+                changes.push(Change::new(path.clone(), ChangeKind::Add, node.is_dir));
+                path.pop();
+            }
+        }
+        changes
     }
 }
 
