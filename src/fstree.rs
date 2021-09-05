@@ -198,8 +198,9 @@ fn explore_path(path: &Path) -> Result<Node> {
 
 #[cfg(test)]
 mod tests {
-    use std::env;
+    use std::{env, process::Command};
 
+    use super::change::*;
     use super::*;
 
     #[test]
@@ -227,5 +228,83 @@ mod tests {
         expected_files.sort();
 
         assert_eq!(files, expected_files);
+    }
+
+    #[test]
+    fn test_tree_difference() {
+        let mut dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+        dir.push("data");
+        dir.push("diff_dir");
+
+        let tree = Tree::new(&dir).unwrap();
+
+        mangle_diff_dir();
+        let changed_tree = Tree::new(&dir).unwrap();
+        unmangle_diff_dir();
+
+        #[derive(PartialEq, Eq, Debug)]
+        struct TestChange {
+            name: String,
+            kind: ChangeKind,
+            is_dir: bool,
+        }
+
+        impl TestChange {
+            fn new(name: &str, kind: ChangeKind, is_dir: bool) -> Self {
+                Self {
+                    name: String::from(name),
+                    kind,
+                    is_dir,
+                }
+            }
+        }
+
+        impl From<Change> for TestChange {
+            fn from(change: Change) -> TestChange {
+                TestChange::new(
+                    change.path().file_name().unwrap().to_str().unwrap(),
+                    change.kind(),
+                    change.is_dir(),
+                )
+            }
+        }
+
+        let changes = tree.difference(&changed_tree);
+        let changes: Vec<_> = changes.into_iter().map(TestChange::from).collect();
+
+        let expected_changes = vec![
+            TestChange::new("a.dat", ChangeKind::Modify, false),
+            TestChange::new("e.dat", ChangeKind::Delete, false),
+            TestChange::new("f.dat", ChangeKind::Delete, false),
+            TestChange::new("g.dat", ChangeKind::Add, false),
+            TestChange::new("h.dat", ChangeKind::Add, false),
+            TestChange::new("d", ChangeKind::Add, false),
+            TestChange::new("d", ChangeKind::Delete, true),
+        ];
+
+        assert_eq!(changes.len(), expected_changes.len());
+        for exp_change in &expected_changes {
+            assert!(changes.contains(exp_change));
+        }
+    }
+
+    fn mangle_diff_dir() {
+        let mut script_path = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+        script_path.push("scripts");
+        script_path.push("mangle_diff_dir.sh");
+        Command::new("bash")
+            .arg(script_path.display().to_string())
+            .output()
+            .unwrap();
+    }
+
+    fn unmangle_diff_dir() {
+        let mut script_path = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+        script_path.push("scripts");
+        script_path.push("unmangle_diff_dir.sh");
+        Command::new("bash")
+            .arg(script_path.display().to_string())
+            .output()
+            .unwrap();
     }
 }

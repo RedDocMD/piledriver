@@ -3,13 +3,14 @@ use std::{
     path::{Path, PathBuf},
 };
 
+#[derive(PartialEq, Eq)]
 pub struct Change {
     path: PathBuf,
     kind: ChangeKind,
     is_dir: bool,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ChangeKind {
     Add,
     Delete,
